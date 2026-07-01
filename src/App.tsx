@@ -17,6 +17,7 @@ import {
   X,
   MessageSquare,
   Folder,
+  BookOpen,
 } from "lucide-react";
 import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId } from "./types";
 import { HARDWARE_PRESETS, MODEL_CATALOG, PLUGINS_LIST, SECURITY_LOGS, PERFORMANCE_PROFILES } from "./data";
@@ -31,6 +32,7 @@ import PluginCenter from "./components/PluginCenter";
 import SecurityCenter from "./components/SecurityCenter";
 import ProjectAnalyzer from "./components/ProjectAnalyzer";
 import AIEvolutionEngine from "./components/AIEvolutionEngine";
+import UserGuide from "./components/UserGuide";
 import { getAuthHeaders } from "./utils";
 
 export default function App() {
@@ -502,6 +504,18 @@ export default function App() {
                 <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
                 <span>Sicurezza & Privacy</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("guide")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "guide"
+                    ? "bg-zinc-800/60 text-white border-l-2 border-emerald-500"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0 text-violet-400" />
+                <span>Guida all'Uso</span>
+              </button>
             </nav>
           </div>
 
@@ -527,6 +541,8 @@ export default function App() {
               installedModelsCount={models.filter((m) => m.downloaded).length}
             />
           )}
+
+          {activeTab === "guide" && <UserGuide />}
 
           {activeTab === "models" && (
             <ModelManager
