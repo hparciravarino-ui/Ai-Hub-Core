@@ -288,21 +288,9 @@ export default function App() {
     addAuditLog("Inference", "Richiesto report diagnostico hardware con l'AI Advisor", "Success");
 
     try {
-      const response = await fetch("/api/assistant/diagnose", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          hardwareProfile: currentHardware,
-          selectedProfile: selectedProfileId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Errore durante il recupero dei dati dell'AI");
-      }
-
-      const data = await response.json();
-      setDiagnosticsText(data.diagnostics);
+      const { diagnoseAPI } = await import("./apiClient");
+      const text = await diagnoseAPI(currentHardware, selectedProfileId);
+      setDiagnosticsText(text);
       addAuditLog("Inference", "Generazione report diagnostico completata dall'Advisor", "Success");
     } catch (err: any) {
       console.error(err);

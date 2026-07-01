@@ -1,5 +1,13 @@
 import { HardwareProfile } from "./types";
 
+const safeAtob = (str: string) => {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch (e) {
+    return atob(str);
+  }
+};
+
 /**
  * Gets the auth headers for Gemini and OpenRouter using the decrypted keys from localStorage.
  */
@@ -7,10 +15,10 @@ export function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   try {
     const geminiKeyEnc = localStorage.getItem("gemini_key_enc");
-    if (geminiKeyEnc) headers["x-gemini-key"] = atob(geminiKeyEnc);
+    if (geminiKeyEnc) headers["x-gemini-key"] = safeAtob(geminiKeyEnc);
 
     const openRouterKeyEnc = localStorage.getItem("openrouter_key_enc");
-    if (openRouterKeyEnc) headers["x-openrouter-key"] = atob(openRouterKeyEnc);
+    if (openRouterKeyEnc) headers["x-openrouter-key"] = safeAtob(openRouterKeyEnc);
   } catch (e) {
     console.error("Failed to parse API keys from localStorage", e);
   }

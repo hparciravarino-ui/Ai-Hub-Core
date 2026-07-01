@@ -37,19 +37,39 @@ export default function SecurityCenter({
   const [geminiError, setGeminiError] = useState("");
   const [openRouterError, setOpenRouterError] = useState("");
 
+  const safeBtoa = (str: string) => {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e) {
+      return btoa(str.replace(/[^\x00-\xFF]/g, ""));
+    }
+  };
+
+  const safeAtob = (str: string) => {
+    try {
+      return decodeURIComponent(escape(atob(str)));
+    } catch (e) {
+      return atob(str);
+    }
+  };
+
   useEffect(() => {
     const storedGKey = localStorage.getItem("gemini_key_enc");
     if (storedGKey) {
-      const decoded = atob(storedGKey);
-      setGeminiKey(decoded);
-      validateKey("gemini", decoded);
+      try {
+        const decoded = safeAtob(storedGKey);
+        setGeminiKey(decoded);
+        validateKey("gemini", decoded);
+      } catch (e) {}
     }
     
     const storedOKey = localStorage.getItem("openrouter_key_enc");
     if (storedOKey) {
-      const decoded = atob(storedOKey);
-      setOpenRouterKey(decoded);
-      validateKey("openrouter", decoded);
+      try {
+        const decoded = safeAtob(storedOKey);
+        setOpenRouterKey(decoded);
+        validateKey("openrouter", decoded);
+      } catch (e) {}
     }
   }, []);
 
@@ -58,18 +78,36 @@ export default function SecurityCenter({
     else { setOpenRouterValidStatus("validating"); setOpenRouterError(""); }
 
     try {
-      const response = await fetch("/api/keys/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, key })
-      });
-      const data = await response.json();
       if (provider === "gemini") {
-        setGeminiValidStatus(data.valid ? "valid" : "invalid");
-        if (!data.valid) setGeminiError(data.error || "Unknown error");
+         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: "test" }] }] })
+         });
+         const data = await response.json();
+         if (response.ok) {
+            setGeminiValidStatus("valid");
+         } else {
+            setGeminiValidStatus("invalid");
+            setGeminiError(data.error?.message || "Errore sconosciuto Gemini");
+         }
       } else {
-        setOpenRouterValidStatus(data.valid ? "valid" : "invalid");
-        if (!data.valid) setOpenRouterError(data.error || "Unknown error");
+         const response = await fetch("https://openrouter.ai/api/v1/auth/key", {
+            method: "GET",
+            headers: {
+               "Authorization": `Bearer ${key}`,
+               "HTTP-Referer": window.location.origin,
+               "X-Title": "AI Hub Simulator"
+            }
+         });
+         if (response.ok) {
+            setOpenRouterValidStatus("valid");
+         } else {
+            let errorText = await response.text().catch(() => "Unknown error");
+            try { const json = JSON.parse(errorText); errorText = json.error?.message || errorText; } catch(e) {}
+            setOpenRouterValidStatus("invalid");
+            setOpenRouterError(`Errore API (${response.status}): ${errorText}`);
+         }
       }
     } catch (e: any) {
       if (provider === "gemini") { setGeminiValidStatus("invalid"); setGeminiError(e.message); }
@@ -99,8 +137,8 @@ export default function SecurityCenter({
            setGeminiValidStatus("none");
            return;
         }
-        localStorage.setItem("gemini_key_enc", btoa(key));
-        validateKey("gemini", key);
+        try { localStorage.setItem("gemini_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("gemini", key.trim());
      } else {
         setOpenRouterKey(key);
         if (!key) {
@@ -108,8 +146,8 @@ export default function SecurityCenter({
            setOpenRouterValidStatus("none");
            return;
         }
-        localStorage.setItem("openrouter_key_enc", btoa(key));
-        validateKey("openrouter", key);
+        try { localStorage.setItem("openrouter_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("openrouter", key.trim());
      }
   };
 

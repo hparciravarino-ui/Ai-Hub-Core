@@ -65,22 +65,12 @@ export default function ModelManager({
     setBackupReason("");
 
     try {
-      const res = await fetch("/api/models/search-online", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ query: onlineSearchQuery }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Errore sconosciuto nella ricerca online");
-      }
-
-      const data = await res.json();
+      const { searchModelsAPI } = await import("../apiClient");
+      const data = await searchModelsAPI(onlineSearchQuery);
       setOnlineSearchResults(data.models || []);
       setOnlineCitations(data.citations || []);
-      setIsBackupMode(!!data.isBackupMode);
-      setBackupReason(data.backupReason || "");
+      setIsBackupMode(!!(data as any).isBackupMode);
+      setBackupReason((data as any).backupReason || "");
     } catch (err: any) {
       console.error(err);
       setOnlineSearchError(err?.message || "Impossibile completare la ricerca online. Verifica la connessione e la chiave API.");

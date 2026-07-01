@@ -554,28 +554,8 @@ export default function ProfessionalChat({
 
     // Call API proxy
     try {
-      const response = await fetch("/api/assistant/chat", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          message: promptText,
-          history: activeChat.messages.map(m => ({ role: m.role, content: m.content })),
-          systemInstruction: systemPrompt,
-          modelId: activeChat.modelId
-        }),
-      });
-
-      if (!response.ok) {
-        let errMsg = "Local AI node timed out";
-        try {
-          const errJson = await response.json();
-          errMsg = errJson.error || errJson.message || errMsg;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      const replyContent = data.content;
+      const { chatAPI } = await import("../apiClient");
+      const replyContent = await chatAPI(promptText, activeChat.messages, systemPrompt, activeChat.modelId);
 
       // Simulate character streaming (token by token)
       let streamIndex = 0;

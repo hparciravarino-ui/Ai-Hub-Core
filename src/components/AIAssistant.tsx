@@ -83,32 +83,14 @@ export default function AIAssistant({
   // Call Express API helper
   const sendMessageToGemini = async (message: string, history: ChatMessage[], systemInstruction?: string) => {
     try {
-      const response = await fetch("/api/assistant/chat", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          message,
-          history: history.map((m) => ({ role: m.role, content: m.content })),
-          systemInstruction,
-        }),
-      });
-
-      if (!response.ok) {
-        let errMsg = "Failed to contact local AI server";
-        try {
-          const errData = await response.json();
-          errMsg = errData.error || errData.message || errMsg;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      return data.content;
+      const { chatAPI } = await import("../apiClient");
+      const reply = await chatAPI(message, history, systemInstruction);
+      return reply;
     } catch (error: any) {
       console.error("Chat proxy error:", error);
       
-      const errorMsg = error?.message || "Errore di connessione al server remoto. Riprova più tardi.";
-      return `❌ **[ERRORE DI RETE / API]** Impossibile completare la generazione del messaggio. \n\n**Dettaglio tecnico:** ${errorMsg}`;
+      const errorMsg = error?.message || "Errore di connessione API remota. Controlla le chiavi.";
+      return `❌ **[ERRORE API]** Impossibile completare la generazione del messaggio. \n\n**Dettaglio tecnico:** ${errorMsg}`;
     }
   };
 
