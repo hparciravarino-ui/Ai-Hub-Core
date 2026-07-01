@@ -67,6 +67,14 @@ export default function App() {
     }
   };
 
+  // Handle custom hardware specifications entered manually
+  const handleCustomHardwareUpdate = (customProfile: HardwareProfile) => {
+    setSelectedHardwareId("custom");
+    setCurrentHardware(customProfile);
+    addAuditLog("System", `Specifiche hardware configurate manualmente: ${customProfile.name}`, "Success");
+    setDiagnosticsText("");
+  };
+
   // Switch operating performance profile
   const handleProfileChange = (profileId: PerformanceProfileId) => {
     setSelectedProfileId(profileId);
@@ -413,6 +421,7 @@ export default function App() {
               onDiagnose={handleDiagnose}
               diagnosticsText={diagnosticsText}
               isDiagnosing={isDiagnosing}
+              onCustomHardwareUpdate={handleCustomHardwareUpdate}
             />
           )}
 
