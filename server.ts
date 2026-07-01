@@ -50,10 +50,11 @@ app.post("/api/keys/validate", async (req, res) => {
       await testAi.models.generateContent({ model: "gemini-3.5-flash", contents: "test", config: { maxOutputTokens: 1 } });
       return res.json({ valid: true });
     } else if (provider === "openrouter") {
+      const origin = req.headers.origin || req.get("referer") || "https://ai.studio/build";
       const orRes = await fetch("https://openrouter.ai/api/v1/auth/key", {
         headers: { 
           "Authorization": `Bearer ${key}`,
-          "HTTP-Referer": "https://ai.studio/build",
+          "HTTP-Referer": origin,
           "X-Title": "AI Hub Simulator"
         }
       });
@@ -108,12 +109,13 @@ app.post("/api/assistant/chat", async (req, res) => {
         { role: "user", content: promptText }
       ];
 
+      const origin = req.headers.origin || req.get("referer") || "https://ai.studio/build";
       const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${activeOpenRouterKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://ai.studio/build",
+          "HTTP-Referer": origin,
           "X-Title": "AI Hub Simulator"
         },
         body: JSON.stringify({

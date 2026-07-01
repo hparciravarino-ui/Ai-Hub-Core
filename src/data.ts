@@ -351,8 +351,8 @@ export const SECURITY_LOGS: AuditLog[] = [
     id: "log_2",
     timestamp: "15:32:11",
     type: "Privacy",
-    action: "Bloccato tentativo di telemetria esterna (Host sconosciuto)",
-    status: "Blocked"
+    action: "Inizializzazione sandbox completata",
+    status: "Success"
   },
   {
     id: "log_3",
