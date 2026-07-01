@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Database,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId } from "./types";
 import { HARDWARE_PRESETS, MODEL_CATALOG, PLUGINS_LIST, SECURITY_LOGS, PERFORMANCE_PROFILES } from "./data";
+import { detectActualHardware } from "./utils";
 import Dashboard from "./components/Dashboard";
 import ModelManager from "./components/ModelManager";
 import Optimizer from "./components/Optimizer";
@@ -33,8 +34,24 @@ import AIEvolutionEngine from "./components/AIEvolutionEngine";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
-  const [selectedHardwareId, setSelectedHardwareId] = useState<string>("low_netbook");
-  const [currentHardware, setCurrentHardware] = useState<HardwareProfile>(HARDWARE_PRESETS[0]);
+  const [selectedHardwareId, setSelectedHardwareId] = useState<string>("custom");
+  const [currentHardware, setCurrentHardware] = useState<HardwareProfile>({
+    id: "custom",
+    name: "Rilevamento in corso...",
+    cpu: "Rilevazione automatica CPU...",
+    gpu: "Rilevazione automatica GPU...",
+    ram: 8,
+    vram: 0.5,
+    cores: 4,
+    threads: 4,
+    storageType: "SSD",
+    freeSpace: 120,
+    temperature: 42,
+    loadCpu: 5,
+    loadGpu: 0,
+    loadRam: 35,
+    loadVram: 0,
+  });
   const [selectedProfileId, setSelectedProfileId] = useState<PerformanceProfileId>("balanced");
   const [models, setModels] = useState<Model[]>(MODEL_CATALOG);
   const [plugins, setPlugins] = useState<Plugin[]>(PLUGINS_LIST);
@@ -54,6 +71,36 @@ export default function App() {
     };
     setLogs((prev) => [newLog, ...prev]);
   };
+
+  // Auto-detect hardware on mount
+  useEffect(() => {
+    try {
+      const detected = detectActualHardware();
+      const detectedProfile: HardwareProfile = {
+        id: "custom",
+        name: `PC Rilevato (${detected.ram}GB RAM, ${detected.gpu})`,
+        cpu: detected.threads ? `CPU con ${detected.threads} Thread Logici` : "CPU Intel/AMD Standard",
+        gpu: detected.gpu || "GPU Integrata standard",
+        ram: detected.ram || 8,
+        vram: detected.vram || 0.5,
+        cores: detected.cores || 4,
+        threads: detected.threads || 4,
+        storageType: "SSD",
+        freeSpace: 150,
+        temperature: 45,
+        loadCpu: 12,
+        loadGpu: 0,
+        loadRam: 42,
+        loadVram: 0,
+      };
+
+      setSelectedHardwareId("custom");
+      setCurrentHardware(detectedProfile);
+      addAuditLog("System", `Telemetria: Rilevato hardware reale del browser (${detectedProfile.ram}GB RAM, ${detectedProfile.gpu})`, "Success");
+    } catch (e) {
+      console.error("Auto-detect failed on mount:", e);
+    }
+  }, []);
 
   // Switch physical hardware profile preset
   const handleHardwareChange = (hardwareId: string) => {
@@ -426,11 +473,11 @@ export default function App() {
           )}
 
           {activeTab === "assistant" && (
-            <AIAssistant availableModels={models} selectedProfileId={selectedProfileId} />
+            <AIAssistant availableModels={models} selectedProfileId={selectedProfileId} currentHardware={currentHardware} />
           )}
 
           {activeTab === "chat" && (
-            <ProfessionalChat availableModels={models} selectedProfileId={selectedProfileId} />
+            <ProfessionalChat availableModels={models} selectedProfileId={selectedProfileId} currentHardware={currentHardware} />
           )}
 
           {activeTab === "analyzer" && (

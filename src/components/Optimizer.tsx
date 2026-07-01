@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Cpu,
   Monitor,
@@ -59,6 +59,11 @@ export default function Optimizer({
   const [installing, setInstalling] = useState(false);
   const [installProgress, setInstallProgress] = useState(0);
   const [installStep, setInstallStep] = useState("");
+
+  // Synchronize form states with currentHardware updates
+  useEffect(() => {
+    loadCurrentIntoForm();
+  }, [currentHardware]);
 
   const loadCurrentIntoForm = () => {
     setCustomName(currentHardware.id === "custom" ? currentHardware.name : "Il Mio PC Personalizzato");
@@ -456,7 +461,18 @@ export default function Optimizer({
             </div>
           ) : (
             <form onSubmit={handleSaveCustomHardware} className="space-y-3.5 text-xs bg-appbg/40 p-3 rounded-lg border border-zinc-850">
-              <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider block">Inserisci Specifiche Reali</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider block">Specifiche Reali Personalizzate</span>
+              </div>
+              
+              <div className="p-2.5 bg-zinc-900/50 border border-zinc-800/80 rounded text-zinc-400 text-[11px] leading-relaxed space-y-1">
+                <p>
+                  ⚠️ <strong>Nota sulla Privacy del Browser:</strong> Alcuni browser limitano la rilevazione automatica per prevenire il tracciamento (fingerprinting) bloccando il nome esatto della GPU o limitando la RAM mostrata.
+                </p>
+                <p className="text-zinc-500 font-medium">
+                  Se i dati rilevati automaticamente non corrispondono, inserisci le specifiche reali del tuo PC qui sotto e fai clic su <strong>Salva e Applica</strong>.
+                </p>
+              </div>
               
               <div>
                 <label className="text-[10px] text-zinc-500 font-mono block mb-1">Nome / Modello del PC</label>

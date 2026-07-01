@@ -49,7 +49,8 @@ import {
   Maximize2,
   Info
 } from "lucide-react";
-import { Model, ChatMessage } from "../types";
+import { Model, ChatMessage, HardwareProfile } from "../types";
+import { generateLocalSimulatedResponse } from "../utils";
 
 // Types for the advanced chat system
 interface ChatSession {
@@ -101,6 +102,7 @@ interface ProjectItem {
 interface ProfessionalChatProps {
   availableModels: Model[];
   selectedProfileId: string;
+  currentHardware: HardwareProfile;
 }
 
 // Initial presets
@@ -119,7 +121,7 @@ const INITIAL_ROLES = [
   { id: "role_analyst", name: "Analista di Dati", icon: SlidersHorizontal, prompt: "Sei un analista aziendale e di dati finanziari. Fornisci valutazioni basate su logica rigorosa, numeri e schemi strutturati.", color: "text-violet-400" },
 ];
 
-export default function ProfessionalChat({ availableModels, selectedProfileId }: ProfessionalChatProps) {
+export default function ProfessionalChat({ availableModels, selectedProfileId, currentHardware }: ProfessionalChatProps) {
   // Database state persisting to LocalStorage
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
@@ -538,7 +540,12 @@ export default function ProfessionalChat({ availableModels, selectedProfileId }:
       });
 
       if (!response.ok) {
-        throw new Error("Local AI node timed out");
+        let errMsg = "Local AI node timed out";
+        try {
+          const errJson = await response.json();
+          errMsg = errJson.error || errJson.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
@@ -591,12 +598,17 @@ export default function ProfessionalChat({ availableModels, selectedProfileId }:
         }
       }, speedDelay);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      
+      const isMissingKey = err?.message?.includes("GEMINI_API_KEY") || err?.message?.includes("not configured");
+      const simulatedText = `⚠️ **[RILEVATO AMBIENTE OFFLINE]** Chiave API Gemini non configurata (o offline).\n*AI Hub ha abilitato il Motore di Simulazione Locale (Local GGUF Sandbox) per darti risposte istantanee con il modello ${activeModel.name}.*\n\n` + 
+        generateLocalSimulatedResponse(userMessageContent, activeModel, currentHardware, activeChat.inferenceProfile);
+
       const failMsg = {
         id: "msg_a_fail_" + Math.random().toString(),
         role: "assistant" as const,
-        content: `**[INTERRUZIONE CONTESTO LOCAL]** Errore di sincronizzazione thread.\nRaccomandazione: Libera la RAM nel modulo 'Ottimizzazione Hardware' o attiva la quantizzazione GGUF.`,
+        content: simulatedText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
       

@@ -13,14 +13,16 @@ import {
   RefreshCw,
   Info,
 } from "lucide-react";
-import { ChatMessage, Model } from "../types";
+import { ChatMessage, Model, HardwareProfile } from "../types";
+import { generateLocalSimulatedResponse } from "../utils";
 
 interface AIAssistantProps {
   availableModels: Model[];
   selectedProfileId: string;
+  currentHardware: HardwareProfile;
 }
 
-export default function AIAssistant({ availableModels, selectedProfileId }: AIAssistantProps) {
+export default function AIAssistant({ availableModels, selectedProfileId, currentHardware }: AIAssistantProps) {
   const [assistantTab, setAssistantTab] = useState<"advisor" | "playground" | "document" | "whisper" | "image">("advisor");
   
   // Advisor Chat State
@@ -84,15 +86,22 @@ export default function AIAssistant({ availableModels, selectedProfileId }: AIAs
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to contact local AI server");
+        let errMsg = "Failed to contact local AI server";
+        try {
+          const errData = await response.json();
+          errMsg = errData.error || errData.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
       return data.content;
     } catch (error: any) {
       console.error("Chat proxy error:", error);
-      return `[Errore Server] Non è stato possibile contattare il server locale dell'AI Hub. Verifica che sia attivo.\nDettaglio: ${error.message}`;
+      
+      const activeModel = downloadedModels[0] || availableModels[0];
+      return `⚠️ **[RILEVATO AMBIENTE OFFLINE]** Chiave API Gemini non configurata (o offline).\n*AI Hub ha abilitato il Motore di Simulazione Locale (Local Sandbox) con il modello ${activeModel.name}.*\n\n` + 
+        generateLocalSimulatedResponse(message, activeModel, currentHardware, selectedProfileId);
     }
   };
 
