@@ -77,6 +77,20 @@ export default function SecurityCenter({
     }
   };
 
+  const resetKey = (provider: "gemini" | "openrouter") => {
+    if (provider === "gemini") {
+      setGeminiKey("");
+      localStorage.removeItem("gemini_key_enc");
+      setGeminiValidStatus("none");
+      setGeminiError("");
+    } else {
+      setOpenRouterKey("");
+      localStorage.removeItem("openrouter_key_enc");
+      setOpenRouterValidStatus("none");
+      setOpenRouterError("");
+    }
+  };
+
   const saveAndValidateKey = (provider: "gemini" | "openrouter", key: string) => {
      if (provider === "gemini") {
         setGeminiKey(key);
@@ -346,9 +360,15 @@ export default function SecurityCenter({
               />
               <button
                 onClick={() => saveAndValidateKey("gemini", geminiKey)}
-                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
               >
                 Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("gemini")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
               </button>
             </div>
             {geminiValidStatus === "invalid" && geminiError && (
@@ -376,9 +396,15 @@ export default function SecurityCenter({
               />
               <button
                 onClick={() => saveAndValidateKey("openrouter", openRouterKey)}
-                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
               >
                 Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("openrouter")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
               </button>
             </div>
             {openRouterValidStatus === "invalid" && openRouterError && (
