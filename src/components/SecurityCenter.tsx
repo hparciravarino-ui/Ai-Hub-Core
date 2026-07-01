@@ -34,6 +34,8 @@ export default function SecurityCenter({
   const [openRouterKey, setOpenRouterKey] = useState("");
   const [geminiValidStatus, setGeminiValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
   const [openRouterValidStatus, setOpenRouterValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [geminiError, setGeminiError] = useState("");
+  const [openRouterError, setOpenRouterError] = useState("");
 
   useEffect(() => {
     const storedGKey = localStorage.getItem("gemini_key_enc");
@@ -52,8 +54,8 @@ export default function SecurityCenter({
   }, []);
 
   const validateKey = async (provider: "gemini" | "openrouter", key: string) => {
-    if (provider === "gemini") setGeminiValidStatus("validating");
-    else setOpenRouterValidStatus("validating");
+    if (provider === "gemini") { setGeminiValidStatus("validating"); setGeminiError(""); }
+    else { setOpenRouterValidStatus("validating"); setOpenRouterError(""); }
 
     try {
       const response = await fetch("/api/keys/validate", {
@@ -64,12 +66,14 @@ export default function SecurityCenter({
       const data = await response.json();
       if (provider === "gemini") {
         setGeminiValidStatus(data.valid ? "valid" : "invalid");
+        if (!data.valid) setGeminiError(data.error || "Unknown error");
       } else {
         setOpenRouterValidStatus(data.valid ? "valid" : "invalid");
+        if (!data.valid) setOpenRouterError(data.error || "Unknown error");
       }
-    } catch (e) {
-      if (provider === "gemini") setGeminiValidStatus("invalid");
-      else setOpenRouterValidStatus("invalid");
+    } catch (e: any) {
+      if (provider === "gemini") { setGeminiValidStatus("invalid"); setGeminiError(e.message); }
+      else { setOpenRouterValidStatus("invalid"); setOpenRouterError(e.message); }
     }
   };
 
@@ -330,7 +334,7 @@ export default function SecurityCenter({
               <label className="text-xs font-bold text-zinc-300">Gemini API Key</label>
               {geminiValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
               {geminiValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
-              {geminiValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50"><X className="w-3 h-3"/> ERRORE API</span>}
+              {geminiValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={geminiError}><X className="w-3 h-3"/> ERRORE API</span>}
             </div>
             <div className="flex gap-2">
               <input
@@ -347,6 +351,11 @@ export default function SecurityCenter({
                 Salva & Valida
               </button>
             </div>
+            {geminiValidStatus === "invalid" && geminiError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {geminiError}
+              </div>
+            )}
           </div>
 
           {/* OpenRouter Key */}
@@ -355,7 +364,7 @@ export default function SecurityCenter({
               <label className="text-xs font-bold text-zinc-300">OpenRouter API Key</label>
               {openRouterValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
               {openRouterValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
-              {openRouterValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50"><X className="w-3 h-3"/> ERRORE API</span>}
+              {openRouterValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={openRouterError}><X className="w-3 h-3"/> ERRORE API</span>}
             </div>
             <div className="flex gap-2">
               <input
@@ -372,6 +381,11 @@ export default function SecurityCenter({
                 Salva & Valida
               </button>
             </div>
+            {openRouterValidStatus === "invalid" && openRouterError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {openRouterError}
+              </div>
+            )}
           </div>
         </div>
       </div>

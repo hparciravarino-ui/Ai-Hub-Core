@@ -51,12 +51,17 @@ app.post("/api/keys/validate", async (req, res) => {
       return res.json({ valid: true });
     } else if (provider === "openrouter") {
       const orRes = await fetch("https://openrouter.ai/api/v1/auth/key", {
-        headers: { "Authorization": `Bearer ${key}` }
+        headers: { 
+          "Authorization": `Bearer ${key}`,
+          "HTTP-Referer": "https://ai.studio/build",
+          "X-Title": "AI Hub Simulator"
+        }
       });
       if (orRes.ok) {
         return res.json({ valid: true });
       } else {
-        return res.json({ valid: false, error: "OpenRouter returned non-OK status" });
+        const errorText = await orRes.text().catch(() => "Unknown error");
+        return res.json({ valid: false, error: `OpenRouter error: ${orRes.status} ${orRes.statusText} - ${errorText}` });
       }
     } else {
       return res.status(400).json({ error: "Invalid provider" });
