@@ -53,10 +53,45 @@ export default function App() {
     loadVram: 0,
   });
   const [selectedProfileId, setSelectedProfileId] = useState<PerformanceProfileId>("balanced");
-  const [models, setModels] = useState<Model[]>(MODEL_CATALOG);
+  const [models, setModels] = useState<Model[]>(() => {
+    try {
+      const saved = localStorage.getItem("ai_hub_models");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse initial models:", e);
+    }
+    return MODEL_CATALOG;
+  });
+
+  // Save models to LocalStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("ai_hub_models", JSON.stringify(models));
+    } catch (e) {
+      console.error("Failed to save models to localStorage:", e);
+    }
+  }, [models]);
+
+  const handleAddNewModel = (newModel: Model) => {
+    setModels((prev) => {
+      if (prev.some((m) => m.id === newModel.id)) {
+        addAuditLog("System", `Modello '${newModel.name}' già presente nel catalogo`, "Warning");
+        return prev;
+      }
+      addAuditLog("System", `Nuovo modello '${newModel.name}' registrato nel catalogo online`, "Success");
+      return [...prev, newModel];
+    });
+  };
+
   const [plugins, setPlugins] = useState<Plugin[]>(PLUGINS_LIST);
   const [logs, setLogs] = useState<AuditLog[]>(SECURITY_LOGS);
   const [offlineOnly, setOfflineOnly] = useState<boolean>(true);
+  const [downloadSpeed, setDownloadSpeed] = useState<"standard" | "turbo" | "instant">("turbo");
   const [diagnosticsText, setDiagnosticsText] = useState<string>("");
   const [isDiagnosing, setIsDiagnosing] = useState<boolean>(false);
 
@@ -136,12 +171,33 @@ export default function App() {
         if (m.id === modelId) {
           addAuditLog("System", `Avviato download del modello '${m.name}'`, "Success");
           
+          if (downloadSpeed === "instant") {
+            setTimeout(() => {
+              setModels((currModels) =>
+                currModels.map((currM) => {
+                  if (currM.id === modelId) {
+                    addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
+                    addAuditLog("Security", `Firma digitale validata locale per '${currM.name}'`, "Success");
+                    addAuditLog("System", `Modello '${currM.name}' installato istantaneamente`, "Success");
+                    return { ...currM, downloadProgress: 100, isDownloading: false, downloaded: true };
+                  }
+                  return currM;
+                })
+              );
+            }, 300);
+            return { ...m, isDownloading: true, downloadProgress: 0 };
+          }
+
+          const delay = downloadSpeed === "turbo" ? 350 : 850;
+          const stepSizeMin = downloadSpeed === "turbo" ? 20 : 10;
+          const stepSizeMax = downloadSpeed === "turbo" ? 30 : 15;
+
           // Set interval to increment download progress
           const interval = setInterval(() => {
             setModels((currModels) =>
               currModels.map((currM) => {
                 if (currM.id === modelId) {
-                  const nextProgress = currM.downloadProgress + Math.floor(Math.random() * 15) + 10;
+                  const nextProgress = currM.downloadProgress + Math.floor(Math.random() * stepSizeMax) + stepSizeMin;
                   if (nextProgress >= 100) {
                     clearInterval(interval);
                     addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
@@ -154,7 +210,7 @@ export default function App() {
                 return currM;
               })
             );
-          }, 850);
+          }, delay);
 
           return { ...m, isDownloading: true, downloadProgress: 0 };
         }
@@ -174,6 +230,27 @@ export default function App() {
         return m;
       })
     );
+  };
+
+  // Bulk installations and removals
+  const handleDownloadAllModels = () => {
+    addAuditLog("System", "Avviata installazione in blocco di tutti i modelli del catalogo", "Success");
+    setModels((prevModels) =>
+      prevModels.map((m) => {
+        return { ...m, downloaded: true, downloadProgress: 100, isDownloading: false };
+      })
+    );
+    addAuditLog("System", "Tutti i modelli del catalogo sono stati installati istantaneamente", "Success");
+  };
+
+  const handleDeleteAllModels = () => {
+    addAuditLog("System", "Rimozione in blocco di tutti i modelli installati", "Warning");
+    setModels((prevModels) =>
+      prevModels.map((m) => {
+        return { ...m, downloaded: false, downloadProgress: 0, isDownloading: false };
+      })
+    );
+    addAuditLog("System", "Spazio di archiviazione liberato: tutti i modelli disinstallati", "Success");
   };
 
   // Toggle dynamic plugin installs
@@ -456,6 +533,11 @@ export default function App() {
               models={models}
               onDownloadModel={handleDownloadModel}
               onDeleteModel={handleDeleteModel}
+              downloadSpeed={downloadSpeed}
+              onDownloadSpeedChange={setDownloadSpeed}
+              onDownloadAll={handleDownloadAllModels}
+              onDeleteAll={handleDeleteAllModels}
+              onAddNewModel={handleAddNewModel}
             />
           )}
 
@@ -473,11 +555,23 @@ export default function App() {
           )}
 
           {activeTab === "assistant" && (
-            <AIAssistant availableModels={models} selectedProfileId={selectedProfileId} currentHardware={currentHardware} />
+            <AIAssistant
+              availableModels={models}
+              selectedProfileId={selectedProfileId}
+              currentHardware={currentHardware}
+              onDownloadModel={handleDownloadModel}
+              onDeleteModel={handleDeleteModel}
+            />
           )}
 
           {activeTab === "chat" && (
-            <ProfessionalChat availableModels={models} selectedProfileId={selectedProfileId} currentHardware={currentHardware} />
+            <ProfessionalChat
+              availableModels={models}
+              selectedProfileId={selectedProfileId}
+              currentHardware={currentHardware}
+              onDownloadModel={handleDownloadModel}
+              onDeleteModel={handleDeleteModel}
+            />
           )}
 
           {activeTab === "analyzer" && (

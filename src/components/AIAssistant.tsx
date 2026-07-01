@@ -20,9 +20,17 @@ interface AIAssistantProps {
   availableModels: Model[];
   selectedProfileId: string;
   currentHardware: HardwareProfile;
+  onDownloadModel?: (modelId: string) => void;
+  onDeleteModel?: (modelId: string) => void;
 }
 
-export default function AIAssistant({ availableModels, selectedProfileId, currentHardware }: AIAssistantProps) {
+export default function AIAssistant({
+  availableModels,
+  selectedProfileId,
+  currentHardware,
+  onDownloadModel,
+  onDeleteModel,
+}: AIAssistantProps) {
   const [assistantTab, setAssistantTab] = useState<"advisor" | "playground" | "document" | "whisper" | "image">("advisor");
   
   // Advisor Chat State

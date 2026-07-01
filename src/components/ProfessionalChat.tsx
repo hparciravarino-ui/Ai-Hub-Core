@@ -103,6 +103,8 @@ interface ProfessionalChatProps {
   availableModels: Model[];
   selectedProfileId: string;
   currentHardware: HardwareProfile;
+  onDownloadModel?: (modelId: string) => void;
+  onDeleteModel?: (modelId: string) => void;
 }
 
 // Initial presets
@@ -121,7 +123,13 @@ const INITIAL_ROLES = [
   { id: "role_analyst", name: "Analista di Dati", icon: SlidersHorizontal, prompt: "Sei un analista aziendale e di dati finanziari. Fornisci valutazioni basate su logica rigorosa, numeri e schemi strutturati.", color: "text-violet-400" },
 ];
 
-export default function ProfessionalChat({ availableModels, selectedProfileId, currentHardware }: ProfessionalChatProps) {
+export default function ProfessionalChat({
+  availableModels,
+  selectedProfileId,
+  currentHardware,
+  onDownloadModel,
+  onDeleteModel
+}: ProfessionalChatProps) {
   // Database state persisting to LocalStorage
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
@@ -193,15 +201,32 @@ export default function ProfessionalChat({ availableModels, selectedProfileId, c
   const [encryptionActive, setEncryptionActive] = useState<boolean>(true);
   const [isCopiedId, setIsCopiedId] = useState<string | null>(null);
 
+  const [pendingCreateAfterDownload, setPendingCreateAfterDownload] = useState<boolean>(false);
+
   // Initialize downloaded models selection
   const downloadedModels = availableModels.filter(m => m.downloaded);
   
   // Set default form model
   useEffect(() => {
-    if (downloadedModels.length > 0 && !formModelId) {
-      setFormModelId(downloadedModels[0].id);
+    if (!formModelId) {
+      if (downloadedModels.length > 0) {
+        setFormModelId(downloadedModels[0].id);
+      } else if (availableModels.length > 0) {
+        setFormModelId(availableModels[0].id);
+      }
     }
-  }, [downloadedModels]);
+  }, [downloadedModels, availableModels, formModelId]);
+
+  // Auto-trigger chat creation when a direct-initiated download finishes
+  useEffect(() => {
+    if (pendingCreateAfterDownload) {
+      const modelObj = availableModels.find(m => m.id === formModelId);
+      if (modelObj && modelObj.downloaded) {
+        setPendingCreateAfterDownload(false);
+        handleCreateChat();
+      }
+    }
+  }, [availableModels, formModelId, pendingCreateAfterDownload]);
 
   // Load chats database from local storage
   useEffect(() => {
@@ -518,7 +543,7 @@ export default function ProfessionalChat({ availableModels, selectedProfileId, c
     saveChatsDb(updatedChats);
 
     // Prepare system instructions with all metadata
-    const activeModel = downloadedModels.find(m => m.id === activeChat.modelId) || downloadedModels[0];
+    const activeModel = downloadedModels.find(m => m.id === activeChat.modelId) || downloadedModels[0] || availableModels.find(m => m.id === activeChat.modelId) || availableModels[0];
     const systemPrompt = activeChat.parameters.systemPrompt;
     
     // Build context
@@ -1179,14 +1204,45 @@ export default function ProfessionalChat({ availableModels, selectedProfileId, c
                       onChange={(e) => setFormModelId(e.target.value)}
                       className="w-full bg-appbg border border-zinc-800 text-xs text-zinc-100 rounded-lg p-2.5 focus:outline-none focus:border-emerald-500"
                     >
-                      {downloadedModels.length === 0 ? (
-                        <option value="">⚠️ Nessun modello scaricato. Vai a 'Gestione Modelli'</option>
-                      ) : (
-                        downloadedModels.map(m => (
-                          <option key={m.id} value={m.id}>{m.name} ({m.size} - {m.quant})</option>
-                        ))
-                      )}
+                      {availableModels.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.size} - {m.quant}) {m.downloaded ? "✓ [Installato]" : "⏳ [Non Installato]"}
+                        </option>
+                      ))}
                     </select>
+
+                    {(() => {
+                      const selectedFormModel = availableModels.find(m => m.id === formModelId);
+                      if (selectedFormModel && !selectedFormModel.downloaded) {
+                        if (selectedFormModel.isDownloading) {
+                          return (
+                            <div className="p-2.5 bg-emerald-950/20 border border-emerald-900/60 rounded-lg flex items-center justify-between text-[11px] text-emerald-400 font-mono">
+                              <span className="animate-pulse">Download in corso: {selectedFormModel.downloadProgress}%</span>
+                              <div className="w-20 bg-zinc-800 h-1.5 rounded-full overflow-hidden shrink-0">
+                                <div className="h-full bg-emerald-500" style={{ width: `${selectedFormModel.downloadProgress}%` }} />
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="p-2.5 bg-zinc-900/80 border border-zinc-800 rounded-lg flex items-center justify-between gap-2 text-[11px]">
+                              <span className="text-zinc-400">⚠️ Richiede installazione locale</span>
+                              {onDownloadModel && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDownloadModel(formModelId)}
+                                  className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded text-[10px] transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Download className="w-3 h-3" />
+                                  <span>Installa</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Select Inference Profile */}
@@ -1462,12 +1518,33 @@ export default function ProfessionalChat({ availableModels, selectedProfileId, c
                 <span>Nessuna richiesta esce dal tuo computer. L'elaborazione è locale al 100%.</span>
               </div>
               <button
-                onClick={handleCreateChat}
-                disabled={downloadedModels.length === 0}
-                className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg cursor-pointer"
+                onClick={() => {
+                  const modelObj = availableModels.find(m => m.id === formModelId);
+                  if (modelObj && !modelObj.downloaded) {
+                    if (!modelObj.isDownloading && onDownloadModel) {
+                      onDownloadModel(formModelId);
+                    }
+                    setPendingCreateAfterDownload(true);
+                  } else {
+                    handleCreateChat();
+                  }
+                }}
+                disabled={
+                  !formModelId || 
+                  (availableModels.find(m => m.id === formModelId)?.isDownloading && !pendingCreateAfterDownload)
+                }
+                className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg cursor-pointer animate-none"
               >
                 <Play className="w-3.5 h-3.5 fill-black" />
-                <span>Inizializza Canale Chat</span>
+                <span>
+                  {(() => {
+                    const modelObj = availableModels.find(m => m.id === formModelId);
+                    if (!modelObj) return "Seleziona Modello";
+                    if (modelObj.downloaded) return "Inizializza Canale Chat";
+                    if (modelObj.isDownloading || pendingCreateAfterDownload) return `Avvio al termine del download (${modelObj.downloadProgress}%)...`;
+                    return "Scarica ed Inizializza Canale";
+                  })()}
+                </span>
               </button>
             </div>
 
