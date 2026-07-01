@@ -50,7 +50,7 @@ import {
   Info
 } from "lucide-react";
 import { Model, ChatMessage, HardwareProfile } from "../types";
-import { generateLocalSimulatedResponse } from "../utils";
+import { getAuthHeaders } from "../utils";
 
 // Types for the advanced chat system
 interface ChatSession {
@@ -449,14 +449,14 @@ export default function ProfessionalChat({
   // Create conversation and append to chats
   const handleCreateChat = () => {
     const finalTitle = formTitle.trim() || `Chat ${INITIAL_ROLES.find(r => r.id === formRole)?.name || "Generica"} #${chats.length + 1}`;
-    const modelObj = downloadedModels.find(m => m.id === formModelId);
+    const modelObj = availableModels.find(m => m.id === formModelId);
 
     const newChat: ChatSession = {
       id: "chat_" + Math.random().toString(36).substr(2, 6) + "_" + Date.now(),
       title: finalTitle,
       createdTime: new Date().toLocaleString(),
       lastModified: new Date().toLocaleString(),
-      modelId: formModelId || (downloadedModels[0]?.id || "llama_3_2_3b"),
+      modelId: formModelId || (availableModels[0]?.id || "llama_3_2_3b"),
       inferenceProfile: formProfile,
       messageCount: formInitialContext ? 2 : 0,
       totalTokens: formInitialContext ? 120 : 0,
@@ -556,11 +556,12 @@ export default function ProfessionalChat({
     try {
       const response = await fetch("/api/assistant/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message: promptText,
           history: activeChat.messages.map(m => ({ role: m.role, content: m.content })),
-          systemInstruction: systemPrompt
+          systemInstruction: systemPrompt,
+          modelId: activeChat.modelId
         }),
       });
 
@@ -626,14 +627,12 @@ export default function ProfessionalChat({
     } catch (err: any) {
       console.error(err);
       
-      const isMissingKey = err?.message?.includes("GEMINI_API_KEY") || err?.message?.includes("not configured");
-      const simulatedText = `⚠️ **[RILEVATO AMBIENTE OFFLINE]** Chiave API Gemini non configurata (o offline).\n*AI Hub ha abilitato il Motore di Simulazione Locale (Local GGUF Sandbox) per darti risposte istantanee con il modello ${activeModel.name}.*\n\n` + 
-        generateLocalSimulatedResponse(userMessageContent, activeModel, currentHardware, activeChat.inferenceProfile);
-
+      const errorMsg = err?.message || "Errore di connessione al server remoto. Riprova più tardi.";
+      
       const failMsg = {
         id: "msg_a_fail_" + Math.random().toString(),
         role: "assistant" as const,
-        content: simulatedText,
+        content: `❌ **[ERRORE DI RETE / API]** Impossibile completare la generazione del messaggio. \n\n**Dettaglio tecnico:** ${errorMsg}`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
       

@@ -14,7 +14,7 @@ import {
   Info,
 } from "lucide-react";
 import { ChatMessage, Model, HardwareProfile } from "../types";
-import { generateLocalSimulatedResponse } from "../utils";
+import { getAuthHeaders } from "../utils";
 
 interface AIAssistantProps {
   availableModels: Model[];
@@ -85,7 +85,7 @@ export default function AIAssistant({
     try {
       const response = await fetch("/api/assistant/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           message,
           history: history.map((m) => ({ role: m.role, content: m.content })),
@@ -107,9 +107,8 @@ export default function AIAssistant({
     } catch (error: any) {
       console.error("Chat proxy error:", error);
       
-      const activeModel = downloadedModels[0] || availableModels[0];
-      return `⚠️ **[RILEVATO AMBIENTE OFFLINE]** Chiave API Gemini non configurata (o offline).\n*AI Hub ha abilitato il Motore di Simulazione Locale (Local Sandbox) con il modello ${activeModel.name}.*\n\n` + 
-        generateLocalSimulatedResponse(message, activeModel, currentHardware, selectedProfileId);
+      const errorMsg = error?.message || "Errore di connessione al server remoto. Riprova più tardi.";
+      return `❌ **[ERRORE DI RETE / API]** Impossibile completare la generazione del messaggio. \n\n**Dettaglio tecnico:** ${errorMsg}`;
     }
   };
 

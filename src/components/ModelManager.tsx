@@ -13,6 +13,7 @@ import {
   Info,
 } from "lucide-react";
 import { Model, HardwareProfile } from "../types";
+import { getAuthHeaders } from "../utils";
 
 interface ModelManagerProps {
   currentHardware: HardwareProfile;
@@ -66,7 +67,7 @@ export default function ModelManager({
     try {
       const res = await fetch("/api/models/search-online", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ query: onlineSearchQuery }),
       });
 
@@ -344,19 +345,6 @@ export default function ModelManager({
                   <div className="text-sm font-semibold text-zinc-200">Interrogazione in rete con Google Search Grounding...</div>
                   <div className="text-xs text-zinc-500 font-mono">Scansione di huggingface.co, ollama.com e paper accademici per trovare i pesi richiesti.</div>
                 </div>
-              </div>
-            )}
-
-            {/* Backup Mode Banner */}
-            {!isSearchingOnline && isBackupMode && (
-              <div className="p-4 bg-amber-950/20 border border-amber-900/60 rounded-xl space-y-1.5">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-amber-400 uppercase tracking-wider font-mono">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                  Server Speculare di AI Hub Attivo (Sincronizzazione di Backup)
-                </div>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  {backupReason || "La quota principale di ricerca online è attualmente esaurita. Per garantirti continuità, abbiamo caricato i pesi e le specifiche tecniche compatibili dal nostro database speculare. Puoi scaricare e installare liberamente questi modelli nel catalogo locale."}
-                </p>
               </div>
             )}
 

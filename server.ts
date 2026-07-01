@@ -25,34 +25,120 @@ app.use(express.json({ limit: "10mb" }));
 // Backend API Endpoints
 // Health Check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "healthy", timestamp: new Date().toISOString() });
+  const customGeminiKey = req.headers["x-gemini-key"] as string | undefined;
+  const customOpenRouterKey = req.headers["x-openrouter-key"] as string | undefined;
+
+  const isKeyConfigured = !!(customGeminiKey || process.env.GEMINI_API_KEY);
+  const isOpenRouterConfigured = !!(customOpenRouterKey || process.env.OPENROUTER_API_KEY);
+  
+  res.json({ 
+    status: "healthy", 
+    timestamp: new Date().toISOString(),
+    apiConfigured: isKeyConfigured,
+    openRouterConfigured: isOpenRouterConfigured
+  });
+});
+
+// Keys Validation Endpoint
+app.post("/api/keys/validate", async (req, res) => {
+  const { provider, key } = req.body;
+  if (!provider || !key) return res.status(400).json({ error: "Missing provider or key" });
+
+  try {
+    if (provider === "gemini") {
+      const testAi = new GoogleGenAI({ apiKey: key });
+      await testAi.models.generateContent({ model: "gemini-3.5-flash", contents: "test", config: { maxOutputTokens: 1 } });
+      return res.json({ valid: true });
+    } else if (provider === "openrouter") {
+      const orRes = await fetch("https://openrouter.ai/api/v1/auth/key", {
+        headers: { "Authorization": `Bearer ${key}` }
+      });
+      if (orRes.ok) {
+        return res.json({ valid: true });
+      } else {
+        return res.json({ valid: false, error: "OpenRouter returned non-OK status" });
+      }
+    } else {
+      return res.status(400).json({ error: "Invalid provider" });
+    }
+  } catch (error: any) {
+    return res.json({ valid: false, error: error.message });
+  }
 });
 
 // Interactive AI Assistant Chat
 app.post("/api/assistant/chat", async (req, res) => {
   try {
-    const { message, history = [], systemInstruction } = req.body;
+    const { message, history = [], systemInstruction, modelId } = req.body;
+    
+    const customGeminiKey = req.headers["x-gemini-key"] as string | undefined;
+    const customOpenRouterKey = req.headers["x-openrouter-key"] as string | undefined;
+    const activeGeminiKey = customGeminiKey || process.env.GEMINI_API_KEY;
+    const activeOpenRouterKey = customOpenRouterKey || process.env.OPENROUTER_API_KEY;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY environment variable is not configured. Please add it to Settings > Secrets.",
-      });
-    }
-
-    // Prepare system instructions for AI Hub Community Assistant
     const defaultInstruction = 
       "You are the senior AI Hub Advisor, an expert in running local LLMs and AI models (such as Llama-3, Phi-4, DeepSeek, Qwen, Mistral, Whisper, Stable Diffusion) on low-end and high-end consumer hardware.\n" +
       "Your role is to guide the user on running local models efficiently on their simulated hardware, explain quantization formats (GGUF, AWQ, EXL2, MLX, ONNX), diagnose performance issues, and recommend models and optimized parameter sets (threads, batch size, GPU offload layers).\n" +
       "Be professional, encouraging, practical, and focus on absolute local execution and privacy. Keep responses concise and formatted with markdown.";
 
     const promptText = message;
-    
+
+    // Use OpenRouter if modelId points to an online open source model
+    if (modelId && modelId.includes("/")) {
+      if (!activeOpenRouterKey) {
+         return res.status(500).json({ error: "Per eseguire veri modelli AI open-source online (es. Llama, Qwen, DeepSeek), devi configurare la tua OPENROUTER_API_KEY." });
+      }
+
+      // Format messages for OpenRouter
+      const messages = [
+        { role: "system", content: systemInstruction || defaultInstruction },
+        ...(history.map((h: any) => ({
+          role: h.role === "assistant" ? "assistant" : "user",
+          content: h.content
+        }))),
+        { role: "user", content: promptText }
+      ];
+
+      const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${activeOpenRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://ai.studio/build",
+          "X-Title": "AI Hub Simulator"
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: messages
+        })
+      });
+
+      if (!orRes.ok) {
+        let errJson;
+        try { errJson = await orRes.json(); } catch(e) {}
+        throw new Error(errJson?.error?.message || "Errore di connessione API OpenRouter.");
+      }
+
+      const orData = await orRes.json();
+      const reply = orData.choices?.[0]?.message?.content || "Nessuna risposta dal modello.";
+      return res.json({ content: reply });
+    }
+
+    if (!activeGeminiKey) {
+      return res.status(500).json({
+        error: "Chiave GEMINI API non configurata.",
+      });
+    }
+
+    // Initialize custom AI client if custom key provided, else use global ai
+    const currentAi = customGeminiKey ? new GoogleGenAI({ apiKey: activeGeminiKey }) : ai;
+
     // Call Gemini API using generateContent as specified in guidelines
-    const response = await ai.models.generateContent({
+    const response = await currentAi.models.generateContent({
       model: "gemini-3.5-flash",
       contents: [
         ...(history.map((h: any) => ({
@@ -79,15 +165,15 @@ app.post("/api/assistant/chat", async (req, res) => {
 app.post("/api/assistant/diagnose", async (req, res) => {
   try {
     const { hardwareProfile, selectedProfile } = req.body;
+    const customGeminiKey = req.headers["x-gemini-key"] as string | undefined;
+    const activeGeminiKey = customGeminiKey || process.env.GEMINI_API_KEY;
 
     if (!hardwareProfile) {
       return res.status(400).json({ error: "Hardware profile is required" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.json({
-        diagnostics: "### Manual Diagnostic Report\n\n- **Hardware:** Intel/AMD CPU with " + hardwareProfile.ram + "GB RAM.\n- **Recommended Profile:** Eco Mode (due to lack of specialized acceleration).\n- **Suggested Models:** Qwen-2.5-1.5B (Q4_K_M) or Phi-3-3.8B (IQ3_XS).\n- **Optimizer Tips:** Run with 4 threads, enable RAM swapping, and use llama.cpp runtime.\n\n*Note: Configure a Gemini API Key under Settings > Secrets to get automated, real-time advanced diagnostics.*"
-      });
+    if (!activeGeminiKey) {
+      return res.status(500).json({ error: "GEMINI_API_KEY non configurata." });
     }
 
     const diagnosisPrompt = `Provide a rapid diagnostic analysis for the following user computer hardware setup wishing to run local open-source AI models:
@@ -104,7 +190,9 @@ Based on this, output a short Markdown diagnostic report containing:
 4. **Optimal Parameters** (VRAM offload layers, CPU thread count, batch size, context length).
 Keep it highly technical, precise, and encouraging!`;
 
-    const response = await ai.models.generateContent({
+    const currentAi = customGeminiKey ? new GoogleGenAI({ apiKey: activeGeminiKey }) : ai;
+
+    const response = await currentAi.models.generateContent({
       model: "gemini-3.5-flash",
       contents: diagnosisPrompt,
       config: {
@@ -119,7 +207,7 @@ Keep it highly technical, precise, and encouraging!`;
   }
 });
 
-// Search Open-Source AI Models Online with Google Search Grounding
+// Search Open-Source AI Models Online with OpenRouter API
 app.post("/api/models/search-online", async (req, res) => {
   try {
     const { query } = req.body;
@@ -127,166 +215,53 @@ app.post("/api/models/search-online", async (req, res) => {
       return res.status(400).json({ error: "Query parameter is required" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.json({
-        models: [
-          {
-            id: `offline_gemma_${Math.random().toString(36).substr(2, 4)}`,
-            name: `${query} (Offline Mock)`,
-            category: "Chat",
-            size: "3.2 GB",
-            quant: "Q4_K_M (GGUF)",
-            ramRequired: 8,
-            vramRequired: 4,
-            estimatedSpeed: 24,
-            description: `Modello trovato offline per la ricerca "${query}". Configura una chiave GEMINI_API_KEY in Settings > Secrets per abilitare la ricerca in rete reale.`,
-            rating: 4.6,
-            format: "GGUF",
-            digitalSignature: "Offline Local Database",
-            sha256: "ea821cb91bc...91da82bc",
-            version: "v1.0.0",
-            sourceUrl: "https://huggingface.co"
-          }
-        ],
-        citations: []
-      });
+    const orRes = await fetch("https://openrouter.ai/api/v1/models");
+    if (!orRes.ok) {
+      throw new Error("Impossibile recuperare i modelli open source da OpenRouter.");
     }
-
-    const searchPrompt = `Il seguente termine di ricerca indica un modello AI open-source (es. Llama, Gemma, DeepSeek, Qwen, Phi, Stable Diffusion, Whisper o simili): "${query}".
-Esegui una ricerca accurata per trovare modelli AI open-source reali che corrispondono a questa ricerca, preferendo quelli disponibili su Hugging Face o Ollama.
-Restituisci un array JSON di oggetti modello (massimo 4) con le specifiche tecniche reali.
-Ogni modello nell'array DEVE avere ESATTAMENTE questi campi in formato JSON:
-- id: stringa univoca, ad esempio "nome_modello_parametro" (es: "gemma_2_2b_it")
-- name: nome leggibile completo (es: "Gemma 2 2B Instruct")
-- category: categoria stringa, una tra "Chat", "Reasoning", "Coding", "Writing", "Audio", "ImageGen"
-- size: dimensione file stringa (es: "2.6 GB" o "4.2 GB")
-- quant: quantizzazione di esempio (es: "Q4_K_M (GGUF)" o "Q8_0 (GGUF)")
-- ramRequired: RAM minima richiesta in GB (numero, es: 6.0)
-- vramRequired: VRAM minima richiesta in GB (numero, es: 4.5)
-- estimatedSpeed: token al secondo stimati (numero, es: 22)
-- description: breve descrizione in italiano che spiega cos'è e le sue peculiarità (2 frasi)
-- rating: voto da 4.0 a 5.0 (numero, es: 4.8)
-- format: formato del modello ("GGUF" o "ONNX")
-- digitalSignature: autore o firma digitale (es: "Google DeepMind Verified")
-- sha256: hash fittizio ma realistico (es: "ab12cd34...")
-- version: versione (es: "v2.0.0")
-- sourceUrl: URL reale di Hugging Face o Ollama per questo modello, trovato tramite ricerca online.
-
-Restituisci solo ed esclusivamente l'array JSON valido racchiuso tra parentesi quadre [], senza blocchi di codice markdown (nessun \`\`\`json), senza testo prima o dopo, in modo che sia direttamente parsabile con JSON.parse.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: searchPrompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.1,
-      },
-    });
-
-    const rawText = response.text || "[]";
-    // Clean up if the model returned markdown codeblocks
-    let cleanJson = rawText.trim();
-    if (cleanJson.startsWith("```json")) {
-      cleanJson = cleanJson.substring(7);
-    } else if (cleanJson.startsWith("```")) {
-      cleanJson = cleanJson.substring(3);
-    }
-    if (cleanJson.endsWith("```")) {
-      cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-    }
-    cleanJson = cleanJson.trim();
-
-    const modelsList = JSON.parse(cleanJson);
     
-    // Extract grounding URLs/citations if any, to enrich the response!
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const citations = groundingChunks?.map((chunk: any) => ({
-      title: chunk.web?.title || "Web Reference",
-      url: chunk.web?.uri || "",
-    })).filter((c: any) => c.url) || [];
+    const orData = await orRes.json();
+    const allModels = orData.data || [];
+    
+    const lowerQuery = query.toLowerCase();
+    const searchResults = allModels.filter((m: any) => 
+      m.id.toLowerCase().includes(lowerQuery) || 
+      (m.name && m.name.toLowerCase().includes(lowerQuery))
+    ).slice(0, 10);
 
-    res.json({ models: modelsList, citations });
-  } catch (error: any) {
-    console.error("Search Online Models Error (Using Dynamic Offline Backup):", error);
-    
-    // Create highly customized dynamic fallback models based on the query to prevent user block on 429 quota error
-    const query = req.body.query || "model";
-    const clean = query.trim();
-    const lower = clean.toLowerCase();
-    
-    // Choose category dynamically based on keywords
-    let category = "Chat";
-    if (lower.includes("code") || lower.includes("coder") || lower.includes("script")) {
-      category = "Coding";
-    } else if (lower.includes("reason") || lower.includes("think") || lower.includes("seek") || lower.includes("r1")) {
-      category = "Reasoning";
-    } else if (lower.includes("audio") || lower.includes("voice") || lower.includes("speech") || lower.includes("whisper")) {
-      category = "Audio";
-    } else if (lower.includes("image") || lower.includes("sd") || lower.includes("flux") || lower.includes("draw") || lower.includes("vision")) {
-      category = "ImageGen";
-    }
+    const mappedModels = searchResults.map((m: any) => {
+      let category = "Chat";
+      const idLower = m.id.toLowerCase();
+      if (idLower.includes("coder") || idLower.includes("code")) category = "Coding";
+      if (idLower.includes("vision") || idLower.includes("vl")) category = "ImageGen";
 
-    const nameCap = clean.charAt(0).toUpperCase() + clean.slice(1);
-    
-    const fallbackModels = [
-      {
-        id: `backup_${lower.replace(/[^a-z0-9]/g, "_")}_quant`,
-        name: `${nameCap} Instruct (GGUF Optimized)`,
+      return {
+        id: m.id,
+        name: m.name || m.id.split("/").pop(),
         category: category,
-        size: "3.6 GB",
-        quant: "Q4_K_M (GGUF)",
-        ramRequired: 8,
-        vramRequired: 4,
-        estimatedSpeed: 28,
-        description: `Modello ${nameCap} ottimizzato in formato GGUF per inferenza rapida su CPU/GPU locale. Caricato dal server di backup AI Hub.`,
+        size: m.context_length ? `${Math.round(m.context_length / 1000)}k Context` : "Cloud API",
+        quant: "API Endpoint",
+        ramRequired: 0,
+        vramRequired: 0,
+        estimatedSpeed: 80,
+        description: m.description ? (m.description.slice(0, 150) + "...") : "Modello open source online ospitato su infrastruttura remota API.",
         rating: 4.8,
-        format: "GGUF",
-        digitalSignature: "AI Hub Mirror Verification (Backup Mode)",
-        sha256: "ea821cb91bc6134...129d2b77a9",
-        version: "v1.0.1",
-        sourceUrl: `https://huggingface.co/models?search=${encodeURIComponent(clean)}`
-      },
-      {
-        id: `backup_${lower.replace(/[^a-z0-9]/g, "_")}_full`,
-        name: `${nameCap} Pro Extreme`,
-        category: category,
-        size: "7.2 GB",
-        quant: "Q8_0 (GGUF)",
-        ramRequired: 16,
-        vramRequired: 8,
-        estimatedSpeed: 16,
-        description: `Versione ad alta definizione di ${nameCap} per elaborazioni testuali avanzate e ragionamento logico ad alta precisione.`,
-        rating: 4.9,
-        format: "GGUF",
-        digitalSignature: "AI Hub High-Performance Mirror (Backup Mode)",
-        sha256: "3fe4d28cb1190ba...99c2d1b82a",
-        version: "v2.1.0",
-        sourceUrl: `https://huggingface.co/models?search=${encodeURIComponent(clean)}`
-      }
-    ];
+        format: "API",
+        digitalSignature: m.id.split("/")[0] || "Open Source",
+        sha256: "Cloud Node",
+        version: "Latest",
+        sourceUrl: `https://openrouter.ai/models/${m.id}`
+      };
+    });
 
     const citations = [
-      {
-        title: `Hugging Face Repository: "${clean}"`,
-        url: `https://huggingface.co/models?search=${encodeURIComponent(clean)}`
-      },
-      {
-        title: `Ollama Models Library: "${clean}"`,
-        url: `https://ollama.com/library`
-      },
-      {
-        title: "AI Hub Backup Server (Sincronizzazione Locale)",
-        url: "https://huggingface.co"
-      }
+      { title: "OpenRouter Models List", url: "https://openrouter.ai/models" }
     ];
 
-    // Respond with backup models so the search succeeds perfectly even if Gemini is rate-limited!
-    res.json({ 
-      models: fallbackModels, 
-      citations, 
-      isBackupMode: true,
-      backupReason: "Quota di ricerca principale esaurita o modalità offline. Servito dai server speculari locali." 
-    });
+    res.json({ models: mappedModels, citations });
+  } catch (error: any) {
+    console.error("Search Online Models Error:", error);
+    res.status(500).json({ error: error?.message || "Errore nella ricerca online dei modelli." });
   }
 });
 

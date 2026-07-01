@@ -31,6 +31,7 @@ import PluginCenter from "./components/PluginCenter";
 import SecurityCenter from "./components/SecurityCenter";
 import ProjectAnalyzer from "./components/ProjectAnalyzer";
 import AIEvolutionEngine from "./components/AIEvolutionEngine";
+import { getAuthHeaders } from "./utils";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
@@ -287,7 +288,7 @@ export default function App() {
     try {
       const response = await fetch("/api/assistant/diagnose", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           hardwareProfile: currentHardware,
           selectedProfile: selectedProfileId,

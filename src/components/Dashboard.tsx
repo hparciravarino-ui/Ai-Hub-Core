@@ -18,9 +18,13 @@ import {
   AlertTriangle,
   RefreshCw,
   TrendingUp,
+  Server,
+  Globe,
+  Activity,
 } from "lucide-react";
 import { HardwareProfile, PerformanceProfile, PerformanceProfileId } from "../types";
 import { PERFORMANCE_PROFILES } from "../data";
+import { getAuthHeaders } from "../utils";
 
 interface DashboardProps {
   currentHardware: HardwareProfile;
@@ -46,7 +50,59 @@ export default function Dashboard({
   });
 
   const [history, setHistory] = useState<any[]>([]);
+  const [serverStatus, setServerStatus] = useState<{
+    ping: number | null;
+    apiConfigured: boolean | null;
+    openRouterConfigured: boolean | null;
+    isOnline: boolean;
+    lastChecked: string;
+  }>({
+    ping: null,
+    apiConfigured: null,
+    openRouterConfigured: null,
+    isOnline: false,
+    lastChecked: "--:--:--",
+  });
+
   const selectedProfile = PERFORMANCE_PROFILES.find((p) => p.id === selectedProfileId) || PERFORMANCE_PROFILES[1];
+
+  // Ping backend API to determine online status
+  useEffect(() => {
+    const checkServerStatus = async () => {
+      const startTime = performance.now();
+      try {
+        const response = await fetch("/api/health", {
+          headers: getAuthHeaders(),
+        });
+        const endTime = performance.now();
+        const pingTime = Math.round(endTime - startTime);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setServerStatus({
+            ping: pingTime,
+            apiConfigured: data.apiConfigured,
+            openRouterConfigured: data.openRouterConfigured,
+            isOnline: true,
+            lastChecked: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          });
+        } else {
+          throw new Error("Server response not ok");
+        }
+      } catch (error) {
+        setServerStatus((prev) => ({
+          ...prev,
+          isOnline: false,
+          ping: null,
+          lastChecked: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        }));
+      }
+    };
+
+    checkServerStatus();
+    const interval = setInterval(checkServerStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize history
   useEffect(() => {
@@ -244,6 +300,62 @@ export default function Dashboard({
           <p className="text-xs text-zinc-400 mt-1">
             Soglia di throttling: <strong className="font-mono text-zinc-300">90°C</strong>
           </p>
+        </div>
+      </div>
+
+      {/* Network & API Handshake Status */}
+      <div className="p-5 bg-panelbg border border-zinc-800 rounded-xl" id="network-handshake-status">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-sky-400" />
+            <h3 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider">
+              Handshake di Rete & Stato API
+            </h3>
+          </div>
+          <span className="text-xs text-zinc-500 font-mono">
+            Ultimo controllo: {serverStatus.lastChecked}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-3 bg-[#0a0a0a] border border-zinc-800/80 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Server className={`w-5 h-5 ${serverStatus.isOnline ? "text-emerald-500" : "text-red-500"}`} />
+              <div>
+                <div className="text-xs text-zinc-400 uppercase font-mono tracking-wider">Stato Server Node</div>
+                <div className={`text-sm font-semibold ${serverStatus.isOnline ? "text-emerald-400" : "text-red-400"}`}>
+                  {serverStatus.isOnline ? "ONLINE" : "OFFLINE"}
+                </div>
+              </div>
+            </div>
+            {serverStatus.isOnline && <CheckCircle className="w-4 h-4 text-emerald-500/50" />}
+          </div>
+
+          <div className="p-3 bg-[#0a0a0a] border border-zinc-800/80 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Activity className={`w-5 h-5 ${serverStatus.ping !== null ? "text-sky-400" : "text-zinc-600"}`} />
+              <div>
+                <div className="text-xs text-zinc-400 uppercase font-mono tracking-wider">Latenza Ping (Locale)</div>
+                <div className="text-sm font-semibold text-sky-400">
+                  {serverStatus.ping !== null ? `${serverStatus.ping} ms` : "--"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 bg-[#0a0a0a] border border-zinc-800/80 rounded-lg flex items-center justify-between col-span-1 md:col-span-3 lg:col-span-1">
+            <div className="flex items-center gap-3">
+              <Zap className={`w-5 h-5 ${serverStatus.apiConfigured || serverStatus.openRouterConfigured ? "text-emerald-500" : "text-amber-500"}`} />
+              <div>
+                <div className="text-xs text-zinc-400 uppercase font-mono tracking-wider">Validazione Token Esterni</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded ${serverStatus.apiConfigured ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500"}`}>Gemini</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded ${serverStatus.openRouterConfigured ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500"}`}>OpenRouter</span>
+                </div>
+              </div>
+            </div>
+            {!(serverStatus.apiConfigured || serverStatus.openRouterConfigured) && <AlertTriangle className="w-4 h-4 text-amber-500/50" />}
+          </div>
         </div>
       </div>
 

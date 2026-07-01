@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -9,6 +9,9 @@ import {
   Search,
   Lock,
   EyeOff,
+  KeyRound,
+  Check,
+  X
 } from "lucide-react";
 import { AuditLog } from "../types";
 
@@ -26,6 +29,71 @@ export default function SecurityCenter({
   const [modelHashQuery, setModelHashQuery] = useState("");
   const [signatureResult, setSignatureResult] = useState<any | null>(null);
   const [verifying, setVerifying] = useState(false);
+
+  const [geminiKey, setGeminiKey] = useState("");
+  const [openRouterKey, setOpenRouterKey] = useState("");
+  const [geminiValidStatus, setGeminiValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [openRouterValidStatus, setOpenRouterValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+
+  useEffect(() => {
+    const storedGKey = localStorage.getItem("gemini_key_enc");
+    if (storedGKey) {
+      const decoded = atob(storedGKey);
+      setGeminiKey(decoded);
+      validateKey("gemini", decoded);
+    }
+    
+    const storedOKey = localStorage.getItem("openrouter_key_enc");
+    if (storedOKey) {
+      const decoded = atob(storedOKey);
+      setOpenRouterKey(decoded);
+      validateKey("openrouter", decoded);
+    }
+  }, []);
+
+  const validateKey = async (provider: "gemini" | "openrouter", key: string) => {
+    if (provider === "gemini") setGeminiValidStatus("validating");
+    else setOpenRouterValidStatus("validating");
+
+    try {
+      const response = await fetch("/api/keys/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, key })
+      });
+      const data = await response.json();
+      if (provider === "gemini") {
+        setGeminiValidStatus(data.valid ? "valid" : "invalid");
+      } else {
+        setOpenRouterValidStatus(data.valid ? "valid" : "invalid");
+      }
+    } catch (e) {
+      if (provider === "gemini") setGeminiValidStatus("invalid");
+      else setOpenRouterValidStatus("invalid");
+    }
+  };
+
+  const saveAndValidateKey = (provider: "gemini" | "openrouter", key: string) => {
+     if (provider === "gemini") {
+        setGeminiKey(key);
+        if (!key) {
+           localStorage.removeItem("gemini_key_enc");
+           setGeminiValidStatus("none");
+           return;
+        }
+        localStorage.setItem("gemini_key_enc", btoa(key));
+        validateKey("gemini", key);
+     } else {
+        setOpenRouterKey(key);
+        if (!key) {
+           localStorage.removeItem("openrouter_key_enc");
+           setOpenRouterValidStatus("none");
+           return;
+        }
+        localStorage.setItem("openrouter_key_enc", btoa(key));
+        validateKey("openrouter", key);
+     }
+  };
 
   const runSignatureCheck = () => {
     if (!modelHashQuery.trim()) return;
@@ -239,6 +307,71 @@ export default function SecurityCenter({
 
           <div className="text-[10px] text-zinc-500 mt-4 leading-normal text-center">
             AI Hub Security Engine • Sviluppato in collaborazione con il consorzio locale OpenSource.
+          </div>
+        </div>
+      </div>
+
+      {/* API Keys Configuration (Encrypted) */}
+      <div className="p-5 bg-panelbg border border-zinc-800 rounded-xl space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-violet-400" />
+            Configurazione API Keys (Criptate Localmente)
+          </h3>
+          <p className="text-xs text-zinc-500 mt-1">
+            Inserisci le tue chiavi per i modelli cloud (es. per simulazioni offline o test in cloud). Le chiavi vengono crittografate solo nel tuo browser e usate in locale per la comunicazione con il server.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Gemini Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">Gemini API Key</label>
+              {geminiValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {geminiValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {geminiValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50"><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIzaSy..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("gemini", geminiKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+              >
+                Salva & Valida
+              </button>
+            </div>
+          </div>
+
+          {/* OpenRouter Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">OpenRouter API Key</label>
+              {openRouterValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {openRouterValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {openRouterValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50"><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={openRouterKey}
+                onChange={(e) => setOpenRouterKey(e.target.value)}
+                placeholder="sk-or-v1-..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("openrouter", openRouterKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+              >
+                Salva & Valida
+              </button>
+            </div>
           </div>
         </div>
       </div>
