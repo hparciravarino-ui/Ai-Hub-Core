@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Model, HardwareProfile } from "../types";
 import { getAuthHeaders } from "../utils";
+import { searchModelsAPI } from "../apiClient";
 
 interface ModelManagerProps {
   currentHardware: HardwareProfile;
@@ -65,7 +66,6 @@ export default function ModelManager({
     setBackupReason("");
 
     try {
-      const { searchModelsAPI } = await import("../apiClient");
       const data = await searchModelsAPI(onlineSearchQuery);
       setOnlineSearchResults(data.models || []);
       setOnlineCitations(data.citations || []);

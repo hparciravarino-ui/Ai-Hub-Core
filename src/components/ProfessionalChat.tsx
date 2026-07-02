@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { chatAPI } from "../apiClient";
 import {
   Plus,
   Search,
@@ -554,7 +555,6 @@ export default function ProfessionalChat({
 
     // Call API proxy
     try {
-      const { chatAPI } = await import("../apiClient");
       const replyContent = await chatAPI(promptText, activeChat.messages, systemPrompt, activeChat.modelId);
 
       // Simulate character streaming (token by token)

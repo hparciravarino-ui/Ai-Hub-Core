@@ -25,7 +25,7 @@ import { detectActualHardware } from "./utils";
 import Dashboard from "./components/Dashboard";
 import ModelManager from "./components/ModelManager";
 import Optimizer from "./components/Optimizer";
-import AIAssistant from "./components/AIAssistant";
+import { diagnoseAPI } from "./apiClient";
 import ProfessionalChat from "./components/ProfessionalChat";
 import Scheduler from "./components/Scheduler";
 import PluginCenter from "./components/PluginCenter";
@@ -288,7 +288,6 @@ export default function App() {
     addAuditLog("Inference", "Richiesto report diagnostico hardware con l'AI Advisor", "Success");
 
     try {
-      const { diagnoseAPI } = await import("./apiClient");
       const text = await diagnoseAPI(currentHardware, selectedProfileId);
       setDiagnosticsText(text);
       addAuditLog("Inference", "Generazione report diagnostico completata dall'Advisor", "Success");

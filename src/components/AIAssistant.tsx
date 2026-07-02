@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ChatMessage, Model, HardwareProfile } from "../types";
 import { getAuthHeaders } from "../utils";
+import { chatAPI } from "../apiClient";
 
 interface AIAssistantProps {
   availableModels: Model[];
@@ -83,7 +84,6 @@ export default function AIAssistant({
   // Call Express API helper
   const sendMessageToGemini = async (message: string, history: ChatMessage[], systemInstruction?: string) => {
     try {
-      const { chatAPI } = await import("../apiClient");
       const reply = await chatAPI(message, history, systemInstruction);
       return reply;
     } catch (error: any) {
