@@ -25,6 +25,7 @@ import { detectActualHardware } from "./utils";
 import Dashboard from "./components/Dashboard";
 import ModelManager from "./components/ModelManager";
 import Optimizer from "./components/Optimizer";
+import AIAssistant from "./components/AIAssistant";
 import { diagnoseAPI } from "./apiClient";
 import ProfessionalChat from "./components/ProfessionalChat";
 import Scheduler from "./components/Scheduler";
