@@ -9,9 +9,9 @@ export async function chatAPI(message: string, history: any[], systemInstruction
   const activeOpenRouterKey = headers["x-openrouter-key"];
   const activeGeminiKey = headers["x-gemini-key"];
 
-  if (modelId && modelId.includes("/")) {
+  if ((modelId && modelId.includes("/")) || (!activeGeminiKey && activeOpenRouterKey) || (modelId && activeOpenRouterKey)) {
     if (!activeOpenRouterKey) {
-      throw new Error("Per eseguire veri modelli AI open-source online (es. Llama, Qwen, DeepSeek), devi configurare la tua OPENROUTER_API_KEY nel menu Sicurezza.");
+      throw new Error("Per eseguire modelli AI open-source online, devi configurare la tua OPENROUTER_API_KEY nel menu Sicurezza.");
     }
     const messages = [
       { role: "system", content: systemInstruction || defaultInstruction },
@@ -22,6 +22,15 @@ export async function chatAPI(message: string, history: any[], systemInstruction
       { role: "user", content: message }
     ];
 
+    let targetModel = modelId;
+    if (!targetModel || !targetModel.includes("/")) {
+        if (targetModel === "llama_3_2_3b") targetModel = "meta-llama/llama-3.2-3b-instruct";
+        else if (targetModel === "deepseek_r1_1_5b") targetModel = "deepseek/deepseek-r1-distill-qwen-1.5b";
+        else if (targetModel === "qwen_2_5_coder_1_5b") targetModel = "qwen/qwen-2.5-coder-32b-instruct";
+        else if (targetModel === "mistral_7b_instruct") targetModel = "mistralai/mistral-7b-instruct:free";
+        else targetModel = "google/gemini-2.0-flash-lite-preview-02-05:free";
+    }
+
     const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -31,7 +40,7 @@ export async function chatAPI(message: string, history: any[], systemInstruction
         "X-Title": "AI Hub Simulator"
       },
       body: JSON.stringify({
-        model: modelId,
+        model: targetModel,
         messages: messages
       })
     });
@@ -45,7 +54,7 @@ export async function chatAPI(message: string, history: any[], systemInstruction
   }
 
   if (!activeGeminiKey) {
-    throw new Error("Chiave GEMINI API non configurata nel menu Sicurezza.");
+    throw new Error("Chiave API non configurata. Inserisci una chiave GEMINI o OPENROUTER nel menu Sicurezza.");
   }
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeGeminiKey}`, {
@@ -76,10 +85,10 @@ export async function chatAPI(message: string, history: any[], systemInstruction
 export async function diagnoseAPI(hardwareProfile: any, selectedProfile: string) {
   const headers = getAuthHeaders();
   const activeGeminiKey = headers["x-gemini-key"];
+  const activeOpenRouterKey = headers["x-openrouter-key"];
   
   if (!hardwareProfile) throw new Error("Hardware profile is required");
-  if (!activeGeminiKey) throw new Error("Chiave GEMINI API non configurata nel menu Sicurezza.");
-
+  
   const diagnosisPrompt = `Provide a rapid diagnostic analysis for the following user computer hardware setup wishing to run local open-source AI models:
 - CPU: ${hardwareProfile.cpu} (${hardwareProfile.cores} cores, ${hardwareProfile.threads} threads)
 - GPU: ${hardwareProfile.gpu} (VRAM: ${hardwareProfile.vram} GB)
@@ -93,6 +102,27 @@ Based on this, output a short Markdown diagnostic report containing:
 3. **Optimal Model Recommendations** (specific small models that fit in their RAM, e.g., Phi-3 3.8B, Llama-3.2 1B or 3B, Qwen-2.5 1.5B/7B).
 4. **Optimal Parameters** (VRAM offload layers, CPU thread count, batch size, context length).
 Keep it highly technical, precise, and encouraging!`;
+
+  if (!activeGeminiKey && activeOpenRouterKey) {
+    const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${activeOpenRouterKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "AI Hub Simulator"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+        messages: [{ role: "user", content: diagnosisPrompt }]
+      })
+    });
+    if (!orRes.ok) throw new Error("Diagnostics compilation failed via OpenRouter.");
+    const orData = await orRes.json();
+    return orData.choices?.[0]?.message?.content || "Diagnostic compilation failed.";
+  }
+
+  if (!activeGeminiKey) throw new Error("Chiave API non configurata nel menu Sicurezza.");
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeGeminiKey}`, {
     method: "POST",
