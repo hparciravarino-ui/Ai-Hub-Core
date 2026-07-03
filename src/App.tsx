@@ -18,6 +18,8 @@ import {
   MessageSquare,
   Folder,
   BookOpen,
+  Layers,
+  Network,
 } from "lucide-react";
 import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId } from "./types";
 import { HARDWARE_PRESETS, MODEL_CATALOG, PLUGINS_LIST, SECURITY_LOGS, PERFORMANCE_PROFILES } from "./data";
@@ -32,8 +34,12 @@ import Scheduler from "./components/Scheduler";
 import PluginCenter from "./components/PluginCenter";
 import SecurityCenter from "./components/SecurityCenter";
 import ProjectAnalyzer from "./components/ProjectAnalyzer";
-import AIEvolutionEngine from "./components/AIEvolutionEngine";
+import AIOrchestratorDashboard from "./components/AIOrchestratorDashboard";
 import UserGuide from "./components/UserGuide";
+import GovernanceCenter from "./components/GovernanceCenter";
+import MicrokernelDashboard from "./components/MicrokernelDashboard";
+import UMALDashboard from "./components/UMALDashboard";
+import IHALDashboard from "./components/IHALDashboard";
 import { getAuthHeaders } from "./utils";
 
 export default function App() {
@@ -111,34 +117,40 @@ export default function App() {
     setLogs((prev) => [newLog, ...prev]);
   };
 
-  // Auto-detect hardware on mount
+  // Hardware detection via API
   useEffect(() => {
-    try {
-      const detected = detectActualHardware();
-      const detectedProfile: HardwareProfile = {
-        id: "custom",
-        name: `PC Rilevato (${detected.ram}GB RAM, ${detected.gpu})`,
-        cpu: detected.threads ? `CPU con ${detected.threads} Thread Logici` : "CPU Intel/AMD Standard",
-        gpu: detected.gpu || "GPU Integrata standard",
-        ram: detected.ram || 8,
-        vram: detected.vram || 0.5,
-        cores: detected.cores || 4,
-        threads: detected.threads || 4,
-        storageType: "SSD",
-        freeSpace: 150,
-        temperature: 45,
-        loadCpu: 12,
-        loadGpu: 0,
-        loadRam: 42,
-        loadVram: 0,
-      };
+    const checkHardware = async () => {
+      try {
+        const response = await fetch("/api/hardware");
+        const data = await response.json();
+        
+        // Use the returned hardware status
+        const detectedProfile: HardwareProfile = {
+          id: "custom",
+          name: `Rilevamento Backend (OS: ${data.profile?.os || 'Sconosciuto'})`,
+          cpu: `Architettura: ${data.profile?.arch || 'N/A'}`,
+          gpu: data.profile?.gpu || "N/A",
+          ram: data.profile?.totalMem ? Math.round(data.profile.totalMem / (1024*1024*1024)) : 8,
+          vram: 0.5,
+          cores: data.profile?.cpuCores || 4,
+          threads: data.profile?.cpuCores || 4,
+          storageType: "SSD",
+          freeSpace: 150,
+          temperature: 45,
+          loadCpu: 0,
+          loadGpu: 0,
+          loadRam: 0,
+          loadVram: 0,
+        };
 
-      setSelectedHardwareId("custom");
-      setCurrentHardware(detectedProfile);
-      addAuditLog("System", `Telemetria: Rilevato hardware reale del browser (${detectedProfile.ram}GB RAM, ${detectedProfile.gpu})`, "Success");
-    } catch (e) {
-      console.error("Auto-detect failed on mount:", e);
-    }
+        setSelectedHardwareId("custom");
+        setCurrentHardware(detectedProfile);
+        addAuditLog("System", `Hardware rilevato dal backend Node.js reale`, "Success");
+      } catch (e) {
+        console.error("Hardware detection API failed:", e);
+      }
+    };
+    checkHardware();
   }, []);
 
   // Switch physical hardware profile preset
@@ -168,107 +180,35 @@ export default function App() {
     addAuditLog("System", `Profilo operativo cambiato in: ${profileName}`, "Success");
   };
 
-  // Simulate downloading model locally
-  const handleDownloadModel = (modelId: string) => {
-    setModels((prevModels) =>
-      prevModels.map((m) => {
-        if (m.id === modelId) {
-          addAuditLog("System", `Avviato download del modello '${m.name}'`, "Success");
-          
-          if (downloadSpeed === "instant") {
-            setTimeout(() => {
-              setModels((currModels) =>
-                currModels.map((currM) => {
-                  if (currM.id === modelId) {
-                    addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
-                    addAuditLog("Security", `Firma digitale validata locale per '${currM.name}'`, "Success");
-                    addAuditLog("System", `Modello '${currM.name}' installato istantaneamente`, "Success");
-                    return { ...currM, downloadProgress: 100, isDownloading: false, downloaded: true };
-                  }
-                  return currM;
-                })
-              );
-            }, 300);
-            return { ...m, isDownloading: true, downloadProgress: 0 };
-          }
-
-          const delay = downloadSpeed === "turbo" ? 350 : 850;
-          const stepSizeMin = downloadSpeed === "turbo" ? 20 : 10;
-          const stepSizeMax = downloadSpeed === "turbo" ? 30 : 15;
-
-          // Set interval to increment download progress
-          const interval = setInterval(() => {
-            setModels((currModels) =>
-              currModels.map((currM) => {
-                if (currM.id === modelId) {
-                  const nextProgress = currM.downloadProgress + Math.floor(Math.random() * stepSizeMax) + stepSizeMin;
-                  if (nextProgress >= 100) {
-                    clearInterval(interval);
-                    addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
-                    addAuditLog("Security", `Firma digitale Meta/DeepSeek validata locale per '${currM.name}'`, "Success");
-                    addAuditLog("System", `Modello '${currM.name}' installato in RAM/SSD locale`, "Success");
-                    return { ...currM, downloadProgress: 100, isDownloading: false, downloaded: true };
-                  }
-                  return { ...currM, downloadProgress: nextProgress };
-                }
-                return currM;
-              })
-            );
-          }, delay);
-
-          return { ...m, isDownloading: true, downloadProgress: 0 };
-        }
-        return m;
-      })
-    );
+  const handleDownloadModel = async (modelId: string) => {
+    try {
+      const response = await fetch("/api/models/download", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) {
+        addAuditLog("System", `Operazione bloccata: ${data.error || "Non implementata"}`, "Blocked");
+        alert(`Errore Architetturale: ${data.error}`);
+        return;
+      }
+    } catch (e) {
+      addAuditLog("System", `Errore di rete`, "Blocked");
+    }
   };
 
-  // Simulate deleting/uninstalling model locally
   const handleDeleteModel = (modelId: string) => {
-    setModels((prevModels) =>
-      prevModels.map((m) => {
-        if (m.id === modelId) {
-          addAuditLog("System", `Modello '${m.name}' rimosso dal disco locale`, "Success");
-          return { ...m, downloaded: false, downloadProgress: 0, isDownloading: false };
-        }
-        return m;
-      })
-    );
+    alert("Eliminazione modelli non implementata (Fase 9).");
   };
 
-  // Bulk installations and removals
   const handleDownloadAllModels = () => {
-    addAuditLog("System", "Avviata installazione in blocco di tutti i modelli del catalogo", "Success");
-    setModels((prevModels) =>
-      prevModels.map((m) => {
-        return { ...m, downloaded: true, downloadProgress: 100, isDownloading: false };
-      })
-    );
-    addAuditLog("System", "Tutti i modelli del catalogo sono stati installati istantaneamente", "Success");
+    alert("Operazione bloccata: Download multiplo non implementato.");
   };
 
   const handleDeleteAllModels = () => {
-    addAuditLog("System", "Rimozione in blocco di tutti i modelli installati", "Warning");
-    setModels((prevModels) =>
-      prevModels.map((m) => {
-        return { ...m, downloaded: false, downloadProgress: 0, isDownloading: false };
-      })
-    );
-    addAuditLog("System", "Spazio di archiviazione liberato: tutti i modelli disinstallati", "Success");
+    alert("Operazione bloccata: Rimozione multipla non implementata.");
   };
 
   // Toggle dynamic plugin installs
   const handleTogglePlugin = (pluginId: string) => {
-    setPlugins((prev) =>
-      prev.map((p) => {
-        if (p.id === pluginId) {
-          const nextState = !p.installed;
-          addAuditLog("Security", `Plugin '${p.name}' ${nextState ? "attivata" : "disattivata"} in sandbox locale`, "Success");
-          return { ...p, installed: nextState };
-        }
-        return p;
-      })
-    );
+    alert("Gestione plugin bloccata in attesa di Fase 16 (Plugin Engine).");
   };
 
   // Toggle offline only privacy protection
@@ -443,17 +383,17 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab("evolution")}
+                onClick={() => setActiveTab("orchestrator")}
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                  activeTab === "evolution"
+                  activeTab === "orchestrator"
                     ? "bg-zinc-800/60 text-emerald-400 border-l-2 border-emerald-500 font-bold"
                     : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
                 }`}
               >
                 <Brain className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                <span className="flex-1 text-left">Motore Evolutivo (AEE)</span>
-                <span className="bg-purple-950/60 text-purple-400 text-[8px] font-mono font-bold border border-purple-900/60 px-1.5 py-0.2 rounded">
-                  AEE
+                <span className="flex-1 text-left">AI Orchestrator Kernel</span>
+                <span className="bg-emerald-950/60 text-emerald-400 text-[8px] font-mono font-bold border border-emerald-900/60 px-1.5 py-0.2 rounded">
+                  CHAP 6
                 </span>
               </button>
 
@@ -491,6 +431,66 @@ export default function App() {
               >
                 <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
                 <span>Sicurezza & Privacy</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("governance")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "governance"
+                    ? "bg-zinc-800/60 text-emerald-400 border-l-2 border-emerald-500 font-bold"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                <span className="flex-1 text-left">Governance & QA</span>
+                <span className="bg-emerald-950/60 text-emerald-400 text-[8px] font-mono font-bold border border-emerald-900/60 px-1.5 py-0.2 rounded">
+                  AAGQA
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("microkernel")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "microkernel"
+                    ? "bg-zinc-800/60 text-emerald-400 border-l-2 border-emerald-500 font-bold"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                <span className="flex-1 text-left">Microkernel & ESB</span>
+                <span className="bg-emerald-950/60 text-emerald-400 text-[8px] font-mono font-bold border border-emerald-900/60 px-1.5 py-0.2 rounded">
+                  CHAP 7
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("umal")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "umal"
+                    ? "bg-zinc-800/60 text-indigo-400 border-l-2 border-indigo-500 font-bold"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <Network className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                <span className="flex-1 text-left">UMAL Abstraction Layer</span>
+                <span className="bg-indigo-950/60 text-indigo-400 text-[8px] font-mono font-bold border border-indigo-900/60 px-1.5 py-0.2 rounded">
+                  CHAP 8
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("ihal")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "ihal"
+                    ? "bg-zinc-800/60 text-amber-400 border-l-2 border-amber-500 font-bold"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <span className="flex-1 text-left">IHAL Abstraction Layer</span>
+                <span className="bg-amber-950/60 text-amber-400 text-[8px] font-mono font-bold border border-amber-900/60 px-1.5 py-0.2 rounded">
+                  CHAP 9
+                </span>
               </button>
 
               <button
@@ -583,8 +583,8 @@ export default function App() {
             <ProjectAnalyzer />
           )}
 
-          {activeTab === "evolution" && (
-            <AIEvolutionEngine />
+          {activeTab === "orchestrator" && (
+            <AIOrchestratorDashboard />
           )}
 
           {activeTab === "scheduler" && <Scheduler />}
@@ -597,6 +597,22 @@ export default function App() {
               offlineOnly={offlineOnly}
               onToggleOffline={handleToggleOffline}
             />
+          )}
+
+          {activeTab === "governance" && (
+            <GovernanceCenter />
+          )}
+
+          {activeTab === "microkernel" && (
+            <MicrokernelDashboard />
+          )}
+
+          {activeTab === "umal" && (
+            <UMALDashboard />
+          )}
+
+          {activeTab === "ihal" && (
+            <IHALDashboard />
           )}
         </main>
       </div>

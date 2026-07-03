@@ -129,11 +129,7 @@ export default function AIAssistant({
     e.preventDefault();
     if (!playgroundInput.trim() || isPlaygroundLoading) return;
 
-    // Check if models are available
-    if (downloadedModels.length === 0) {
-      alert("Nessun modello locale è installato. Scarica prima un modello nel menu 'Gestione Modelli'.");
-      return;
-    }
+    const activeModel = downloadedModels.find((m) => m.id === selectedPlaygroundModel) || downloadedModels[0] || { name: "Core Engine Proxy", quant: "INT8", id: "core", vramRequired: 0 };
 
     const userMsg: ChatMessage = {
       id: Math.random().toString(),
@@ -146,8 +142,6 @@ export default function AIAssistant({
     setPlaygroundInput("");
     setIsPlaygroundLoading(true);
     setPlaygroundMetrics(null);
-
-    const activeModel = downloadedModels.find((m) => m.id === selectedPlaygroundModel) || downloadedModels[0];
 
     // Create system instruction to fake the selected model and reasoning style
     let customInstruction = `You are a simulated local AI model named '${activeModel.name}' quantised in '${activeModel.quant}'.\n`;
@@ -196,69 +190,67 @@ export default function AIAssistant({
     }
   };
 
+  const processUploadedFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      setUploadedFile({ name: file.name, size: (file.size / 1024).toFixed(1) + " KB", content: text });
+      
+      // Upload to backend
+      await fetch('/api/v1/knowledge/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: file.name, content: text })
+      });
+    } catch (e) {
+      alert("Errore nella lettura del file.");
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setUploadedFile({
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + " KB",
-        content: "Contenuto fittizio estratto dal documento locale per la ricerca vettoriale RAG.",
-      });
+      processUploadedFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploadedFile({
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + " KB",
-        content: "Contenuto fittizio estratto dal documento locale per la ricerca vettoriale RAG.",
-      });
+      processUploadedFile(e.target.files[0]);
     }
   };
 
   const runDocumentQA = async () => {
-    if (!uploadedFile || !documentPrompt.trim()) return;
+    if (!documentPrompt.trim()) return;
     setIsDocumentLoading(true);
-
-    const ragInstruction = `You are a local RAG pipeline engine. Answer the user's question about the file '${uploadedFile.name}' using only local context. Be precise and short.`;
-    const prompt = `CONTESTO DOCUMENTALE:\n${uploadedFile.content}\n\nDOMANDA: ${documentPrompt}`;
-    
-    const reply = await sendMessageToGemini(prompt, [], ragInstruction);
-    setDocumentAnswer(reply);
+    try {
+      const res = await fetch('/api/v1/knowledge/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: documentPrompt, documentId: uploadedFile?.name })
+      });
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        setDocumentAnswer(data.results.join("\n\n"));
+      } else {
+        setDocumentAnswer("Nessuna informazione rilevante trovata nel documento.");
+      }
+    } catch (e) {
+      setDocumentAnswer("Errore durante l'interrogazione del Knowledge Engine.");
+    }
     setIsDocumentLoading(false);
   };
 
   // Whisper transcription simulation
   const simulateRecording = () => {
-    setIsWhisperTranscribing(true);
-    setAudioFile("Mic_Recording_01.wav");
-
-    setTimeout(() => {
-      setWhisperTranscript("Questo è un test di trascrizione audio locale eseguito con Whisper Base in formato ONNX ottimizzato. Il tempo di elaborazione stimato è inferiore a 120 millisecondi.");
-      setIsWhisperTranscribing(false);
-    }, 2000);
+    alert("Modulo Whisper non ancora collegato all'Inference Engine.");
   };
 
   // Image Gen tinySD simulator
   const runImageGen = () => {
-    if (!imagePrompt.trim()) return;
-    setIsGeneratingImage(true);
-    setGeneratedImageUrl(null);
-
-    const startTime = Date.now();
-    setTimeout(() => {
-      // Create a visual styled prompt representation
-      const randomId = Math.floor(Math.random() * 1000);
-      setGeneratedImageUrl(`https://picsum.photos/seed/${randomId}/512/512`);
-      setImageGenTime(parseFloat(((Date.now() - startTime) / 1000).toFixed(2)));
-      setIsGeneratingImage(false);
-    }, 3000);
+    alert("Motore TinySD non ancora inizializzato.");
   };
 
   return (
@@ -390,7 +382,7 @@ export default function AIAssistant({
                     className="bg-appbg border border-zinc-800 text-xs text-zinc-300 rounded px-2.5 py-1 focus:outline-none"
                   >
                     {downloadedModels.length === 0 ? (
-                      <option value="">Nessun modello scaricato</option>
+                      <option value="core_engine_default">Core Engine Proxy (Online)</option>
                     ) : (
                       downloadedModels.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -464,14 +456,14 @@ export default function AIAssistant({
               <input
                 type="text"
                 value={playgroundInput}
-                disabled={downloadedModels.length === 0}
+                disabled={false}
                 onChange={(e) => setPlaygroundInput(e.target.value)}
-                placeholder={downloadedModels.length === 0 ? "⚠️ Installa prima un modello per abilitare il playground." : "Scrivi qui per testare il modello locale..."}
+                placeholder={"Scrivi qui per testare il modello..."}
                 className="flex-1 bg-appbg border border-zinc-800 rounded-lg py-2 px-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
               />
               <button
                 type="submit"
-                disabled={isPlaygroundLoading || !playgroundInput.trim() || downloadedModels.length === 0}
+                disabled={isPlaygroundLoading || !playgroundInput.trim()}
                 className="bg-zinc-100 hover:bg-zinc-200 disabled:opacity-50 text-zinc-950 font-semibold px-4 py-2 rounded-lg text-xs transition"
               >
                 <Send className="w-4 h-4" />
