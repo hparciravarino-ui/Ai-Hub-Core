@@ -49,12 +49,59 @@ export default function PluginCenter({ plugins, onTogglePlugin }: PluginCenterPr
       </div>
 
       {activeSubTab === "store" ? (
-        <div className="p-12 border border-dashed border-zinc-800 rounded-xl text-center bg-[#0a0a0a]/50">
-          <Blocks className="w-10 h-10 text-amber-500 mx-auto mb-4 opacity-80" />
-          <h3 className="text-lg font-medium text-zinc-300">Plugin Store Non Ancora Disponibile</h3>
-          <p className="text-sm text-zinc-500 mt-2 max-w-lg mx-auto">
-            In ottemperanza alle direttive SRS Enterprise, la simulazione dei plugin è stata rimossa. Il sistema di gestione dei plugin reali sarà implementato nella Fase 4.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="plugins-list-grid">
+          {plugins.map((plugin) => (
+            <div key={plugin.id} className="p-4 bg-panelbg border border-zinc-800 rounded-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded">
+                        {plugin.category}
+                      </span>
+                      {plugin.signed ? (
+                        <span className="text-[10px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 px-2 py-0.5 rounded font-bold">
+                          FIRMATE
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono bg-amber-950/40 text-amber-400 border border-amber-900/60 px-2 py-0.5 rounded font-bold">
+                          COMMUNITY
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-semibold text-zinc-100 mt-2">{plugin.name}</h4>
+                    <span className="text-[10px] text-zinc-500 font-mono">Autore: {plugin.author} • v{plugin.version}</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+                  {plugin.description}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800">
+                <span className="text-xs text-zinc-500 font-mono">Rating: {plugin.rating} / 5</span>
+                
+                {plugin.installed ? (
+                  <button
+                    onClick={() => onTogglePlugin(plugin.id)}
+                    className="flex items-center space-x-1 border border-red-900 hover:bg-red-950/40 text-red-400 font-semibold px-2.5 py-1 rounded text-xs transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Rimuovi</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onTogglePlugin(plugin.id)}
+                    className="flex items-center space-x-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-950 font-bold px-2.5 py-1 rounded text-xs transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Installa</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="p-5 bg-panelbg border border-zinc-800 rounded-xl space-y-6" id="api-developer-panel">

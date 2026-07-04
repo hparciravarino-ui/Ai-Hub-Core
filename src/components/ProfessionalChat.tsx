@@ -214,8 +214,6 @@ export default function ProfessionalChat({
         setFormModelId(downloadedModels[0].id);
       } else if (availableModels.length > 0) {
         setFormModelId(availableModels[0].id);
-      } else {
-        setFormModelId("core_engine_default");
       }
     }
   }, [downloadedModels, availableModels, formModelId]);
@@ -231,37 +229,84 @@ export default function ProfessionalChat({
     }
   }, [availableModels, formModelId, pendingCreateAfterDownload]);
 
-  // Load chats database from backend
+  // Load chats database from local storage
   useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const response = await fetch("/api/chat");
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            setChats(data);
-            return;
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch chats from backend", e);
-      }
-      
-      // Fallback local storage or seed data if backend is empty
-      const savedChats = localStorage.getItem("ai_hub_pro_chats");
-      if (savedChats) {
-        try {
-          const parsed = JSON.parse(savedChats);
-          setChats(parsed);
-          // Sync backend
-          fetch("/api/chat/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed) });
-        } catch (e) {}
-      }
-    };
-
-    fetchChats();
-
+    const savedChats = localStorage.getItem("ai_hub_pro_chats");
     const savedProjects = localStorage.getItem("ai_hub_pro_projects");
+    if (savedChats) {
+      try {
+        setChats(JSON.parse(savedChats));
+      } catch (e) {
+        console.error("Failed to parse local storage chats", e);
+      }
+    } else {
+      // Seed some demo chats
+      const seedChats: ChatSession[] = [
+        {
+          id: "chat_demo_1",
+          title: "Inizializzazione Configurazione Server",
+          createdTime: new Date(Date.now() - 3600000 * 2).toLocaleString(),
+          lastModified: new Date(Date.now() - 3600000 * 2).toLocaleString(),
+          modelId: "llama_3_2_3b",
+          inferenceProfile: "balanced",
+          messageCount: 2,
+          totalTokens: 420,
+          totalProcessingTime: 12,
+          tags: ["Server", "Docker", "Nginx"],
+          category: "Coding",
+          projectId: "proj_coding",
+          status: "active",
+          parameters: {
+            temperature: 0.5,
+            topP: 0.85,
+            topK: 40,
+            contextWindow: 4096,
+            maxTokens: 1024,
+            systemPrompt: "Sei un sistemista senior esperto.",
+            initialContext: "",
+            language: "Italiano"
+          },
+          summary: "Configurazione di un proxy inverso Docker Nginx con certificati SSL crittografati.",
+          messages: [
+            { id: "msg_1", role: "user", content: "Come posso configurare un reverse proxy Docker con nginx per un'applicazione Node.js?", timestamp: "10:12" },
+            { id: "msg_2", role: "assistant", content: "Ecco una configurazione standard e sicura utilizzando Docker Compose e Nginx.\n\n```yaml\nversion: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./nginx.conf:/etc/nginx/nginx.conf:ro\n```\nFunziona completamente offline in modalità sandbox.", timestamp: "10:13" }
+          ]
+        },
+        {
+          id: "chat_demo_2",
+          title: "Analisi di Mercato Q2",
+          createdTime: new Date(Date.now() - 3600000 * 24).toLocaleString(),
+          lastModified: new Date(Date.now() - 3600000 * 23).toLocaleString(),
+          modelId: "gemma_2_2b",
+          inferenceProfile: "performance",
+          messageCount: 4,
+          totalTokens: 1280,
+          totalProcessingTime: 45,
+          tags: ["Business", "Finanza"],
+          category: "Analista",
+          projectId: "proj_finance",
+          status: "favorite",
+          parameters: {
+            temperature: 0.7,
+            topP: 0.9,
+            topK: 50,
+            contextWindow: 8192,
+            maxTokens: 2048,
+            systemPrompt: "Sei un analista di mercato.",
+            initialContext: "",
+            language: "Italiano"
+          },
+          summary: "Valutazione dei trend commerciali emergenti con attenzione alle startup SaaS B2B.",
+          messages: [
+            { id: "m_u1", role: "user", content: "Quali sono i trend emergenti SaaS B2B per quest'anno?", timestamp: "Ieri 09:30" },
+            { id: "m_a1", role: "assistant", content: "I trend SaaS B2B dominanti si concentrano su:\n1. Integrazione locale di modelli LLM compatti (Edge AI) per massima privacy.\n2. Architettura componibile senza server.\n3. Strumenti analitici predittivi dedicati.", timestamp: "Ieri 09:32" }
+          ]
+        }
+      ];
+      setChats(seedChats);
+      localStorage.setItem("ai_hub_pro_chats", JSON.stringify(seedChats));
+    }
+
     if (savedProjects) {
       try {
         setProjects(JSON.parse(savedProjects));
@@ -269,14 +314,10 @@ export default function ProfessionalChat({
     }
   }, []);
 
-  // Save changes to backend helper
+  // Save changes to local storage helper
   const saveChatsDb = (updatedChats: ChatSession[]) => {
     setChats(updatedChats);
-    fetch("/api/chat/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedChats)
-    }).catch(e => console.error("Sync failed", e));
+    localStorage.setItem("ai_hub_pro_chats", JSON.stringify(updatedChats));
   };
 
   const saveProjectsDb = (updatedProjects: ProjectItem[]) => {
@@ -1142,11 +1183,6 @@ export default function ProfessionalChat({
                       onChange={(e) => setFormModelId(e.target.value)}
                       className="w-full bg-appbg border border-zinc-800 text-xs text-zinc-100 rounded-lg p-2.5 focus:outline-none focus:border-emerald-500"
                     >
-                      {availableModels.length === 0 && (
-                        <option value="core_engine_default">
-                          Core Engine Proxy (Online)
-                        </option>
-                      )}
                       {availableModels.map(m => (
                         <option key={m.id} value={m.id}>
                           {m.name} ({m.size} - {m.quant}) {m.downloaded ? "✓ [Installato]" : "⏳ [Non Installato]"}
@@ -1587,9 +1623,6 @@ export default function ProfessionalChat({
                     onChange={(e) => setComparisonModelId(e.target.value)}
                     className="bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 rounded px-2 py-0.5 focus:outline-none"
                   >
-                    {downloadedModels.length === 0 && (
-                      <option value="core_engine_default">Core Engine Proxy</option>
-                    )}
                     {downloadedModels.map(m => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
