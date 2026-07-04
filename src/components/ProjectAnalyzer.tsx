@@ -80,7 +80,7 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 // Presets for target projects
-const DEMO_PROJECTS = [
+const LOCAL_PROJECTS = [
   {
     id: "proj_ecommerce",
     name: "E-Commerce Microservices",
@@ -315,7 +315,7 @@ export default function ProjectAnalyzer() {
   ];
 
   // Current active preset metadata
-  const activePreset = DEMO_PROJECTS.find(p => p.id === selectedPresetId) || DEMO_PROJECTS[0];
+  const activePreset = LOCAL_PROJECTS.find(p => p.id === selectedPresetId) || LOCAL_PROJECTS[0];
 
   return (
     <div className="space-y-6" id="project-analyzer-tab">
@@ -347,7 +347,7 @@ export default function ProjectAnalyzer() {
               }}
               className="bg-appbg border border-zinc-800 text-xs text-zinc-300 rounded px-2.5 py-1.5 focus:outline-none"
             >
-              {DEMO_PROJECTS.map(p => (
+              {LOCAL_PROJECTS.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>

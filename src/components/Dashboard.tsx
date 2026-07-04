@@ -74,7 +74,7 @@ export default function Dashboard({
         const geminiKeyEnc = localStorage.getItem("gemini_key_enc");
         const openRouterKeyEnc = localStorage.getItem("openrouter_key_enc");
         const endTime = performance.now();
-        const pingTime = Math.round(endTime - startTime) + Math.floor(Math.random() * 20) + 10;
+        const pingTime = Math.max(1, Math.round(endTime - startTime));
         
         setServerStatus({
           ping: pingTime,
@@ -129,45 +129,45 @@ export default function Dashboard({
             baseGpu = 2;
             baseRam = Math.min(prev.ram, currentHardware.ram * 6); // compressed, lower ram
             baseVram = 5;
-            baseTemp = 48 + Math.random() * 3;
-            tokSpeed = 12 + Math.random() * 2;
-            lat = 220 + Math.random() * 20;
+            baseTemp = 48;
+            tokSpeed = 12;
+            lat = 220;
             break;
           case "balanced":
             baseCpu = 35;
             baseGpu = 15;
             baseRam = 45;
             baseVram = 25;
-            baseTemp = 55 + Math.random() * 4;
-            tokSpeed = 22 + Math.random() * 3;
-            lat = 110 + Math.random() * 15;
+            baseTemp = 55;
+            tokSpeed = 22;
+            lat = 110;
             break;
           case "performance":
             baseCpu = 55;
             baseGpu = 50;
             baseRam = 55;
             baseVram = 60;
-            baseTemp = 64 + Math.random() * 4;
-            tokSpeed = 38 + Math.random() * 5;
-            lat = 45 + Math.random() * 8;
+            baseTemp = 64;
+            tokSpeed = 38;
+            lat = 45;
             break;
           case "turbo":
             baseCpu = 85;
             baseGpu = 92;
             baseRam = 75;
             baseVram = 88;
-            baseTemp = 76 + Math.random() * 5;
-            tokSpeed = 58 + Math.random() * 8;
-            lat = 18 + Math.random() * 4;
+            baseTemp = 76;
+            tokSpeed = 58;
+            lat = 18;
             break;
           case "quality":
             baseCpu = 45;
             baseGpu = 65;
             baseRam = 85; // high memory precision
             baseVram = 70;
-            baseTemp = 68 + Math.random() * 3;
-            tokSpeed = 18 + Math.random() * 2;
-            lat = 85 + Math.random() * 10;
+            baseTemp = 68;
+            tokSpeed = 18;
+            lat = 85;
             break;
         }
 
@@ -183,10 +183,10 @@ export default function Dashboard({
           tokSpeed = tokSpeed * 1.1;
         }
 
-        const newCpu = Math.min(100, Math.max(2, Math.round(baseCpu + (Math.random() * 8 - 4))));
-        const newGpu = Math.min(100, Math.max(0, Math.round(baseGpu + (Math.random() * 6 - 3))));
-        const newRam = Math.min(100, Math.max(10, Math.round(baseRam + (Math.random() * 4 - 2))));
-        const newVram = Math.min(100, Math.max(0, Math.round(baseVram + (Math.random() * 4 - 2))));
+        const newCpu = Math.min(100, Math.max(2, Math.round(baseCpu)));
+        const newGpu = Math.min(100, Math.max(0, Math.round(baseGpu)));
+        const newRam = Math.min(100, Math.max(10, Math.round(baseRam)));
+        const newVram = Math.min(100, Math.max(0, Math.round(baseVram)));
         const newTemp = Math.round(baseTemp);
         const finalTok = parseFloat(tokSpeed.toFixed(1));
         const finalLat = Math.round(lat);

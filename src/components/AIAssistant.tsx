@@ -69,15 +69,8 @@ export default function AIAssistant({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Whisper State
-  const [audioFile, setAudioFile] = useState<string | null>(null);
-  const [whisperTranscript, setWhisperTranscript] = useState("");
-  const [isWhisperTranscribing, setIsWhisperTranscribing] = useState(false);
 
   // Image Gen State
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [imageGenTime, setImageGenTime] = useState(0);
 
   const downloadedModels = availableModels.filter((m) => m.downloaded);
 
@@ -234,32 +227,6 @@ export default function AIAssistant({
     setIsDocumentLoading(false);
   };
 
-  // Whisper transcription simulation
-  const simulateRecording = () => {
-    setIsWhisperTranscribing(true);
-    setAudioFile("Mic_Recording_01.wav");
-
-    setTimeout(() => {
-      setWhisperTranscript("Questo è un test di trascrizione audio locale eseguito con Whisper Base in formato ONNX ottimizzato. Il tempo di elaborazione stimato è inferiore a 120 millisecondi.");
-      setIsWhisperTranscribing(false);
-    }, 2000);
-  };
-
-  // Image Gen tinySD simulator
-  const runImageGen = () => {
-    if (!imagePrompt.trim()) return;
-    setIsGeneratingImage(true);
-    setGeneratedImageUrl(null);
-
-    const startTime = Date.now();
-    setTimeout(() => {
-      // Create a visual styled prompt representation
-      const randomId = Math.floor(Math.random() * 1000);
-      setGeneratedImageUrl(`https://picsum.photos/seed/${randomId}/512/512`);
-      setImageGenTime(parseFloat(((Date.now() - startTime) / 1000).toFixed(2)));
-      setIsGeneratingImage(false);
-    }, 3000);
-  };
 
   return (
     <div className="space-y-6" id="ai-assistant-tab">
@@ -288,22 +255,6 @@ export default function AIAssistant({
           }`}
         >
           Document AI (RAG)
-        </button>
-        <button
-          onClick={() => setAssistantTab("whisper")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-            assistantTab === "whisper" ? "bg-zinc-800/60 text-zinc-100 border border-zinc-850" : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Trascrizione Vocale (Whisper)
-        </button>
-        <button
-          onClick={() => setAssistantTab("image")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-            assistantTab === "image" ? "bg-zinc-800/60 text-zinc-100 border border-zinc-850" : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Generazione Immagini (TinySD)
         </button>
       </div>
 
@@ -558,126 +509,8 @@ export default function AIAssistant({
             </div>
           </div>
         )}
-
-        {/* TAB 4: WHISPER STT */}
-        {assistantTab === "whisper" && (
-          <div className="p-5 bg-panelbg border border-zinc-800 rounded-xl space-y-4" id="whisper-tab-panel">
-            <div className="flex items-center space-x-2 border-b border-zinc-800 pb-3">
-              <Mic className="w-5 h-5 text-sky-400" />
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider">Trascrizione Vocale (Whisper Base)</h3>
-                <p className="text-[10px] text-zinc-500">Sfrutta il runtime Whisper locale per convertire audio o microfono in testo istantaneamente</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 bg-appbg border border-zinc-800 rounded-xl flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-12 h-12 bg-sky-950/20 text-sky-400 rounded-full flex items-center justify-center border border-sky-900/60 animate-pulse">
-                  <Mic className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-zinc-200">Trascrizione tramite microfono</h4>
-                  <p className="text-[11px] text-zinc-500 mt-1">Registra la tua voce locale e l'AI Hub genererà il testo.</p>
-                </div>
-                <button
-                  onClick={simulateRecording}
-                  disabled={isWhisperTranscribing}
-                  className="bg-zinc-100 hover:bg-zinc-200 disabled:opacity-50 text-zinc-950 font-bold px-5 py-2.5 rounded-lg text-xs transition"
-                >
-                  {isWhisperTranscribing ? "Ascolto/Trascrizione..." : "Registra e Trascrivi"}
-                </button>
-              </div>
-
-              <div className="p-4 bg-appbg border border-zinc-800 rounded-xl flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-mono text-sky-400 uppercase tracking-wider block mb-2">Trascrizione Elaborata</span>
-                  {whisperTranscript ? (
-                    <div className="p-3 bg-panelbg border border-zinc-805 rounded-lg text-xs text-zinc-300 font-sans italic leading-relaxed">
-                      "{whisperTranscript}"
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-zinc-600 text-xs my-auto">
-                      Nessun testo elaborato. Clicca su registra per iniziare.
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 text-[10px] text-zinc-500 font-mono flex items-center justify-between border-t border-zinc-800 pt-2.5">
-                  <span>Modello: Whisper Base (ONNX)</span>
-                  <span>Latenza: ~120ms</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: TINYSD IMAGE GEN */}
-        {assistantTab === "image" && (
-          <div className="p-5 bg-panelbg border border-zinc-800 rounded-xl space-y-4" id="imagesd-tab-panel">
-            <div className="flex items-center space-x-2 border-b border-zinc-800 pb-3">
-              <ImageIcon className="w-5 h-5 text-violet-400" />
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-100 uppercase tracking-wider">Generazione Immagini (TinySD)</h3>
-                <p className="text-[10px] text-zinc-500">Crea immagini digitali offline con modelli di Stable Diffusion compatti</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-4 bg-appbg border border-zinc-800 rounded-xl flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">Prompt Immagine</label>
-                  <textarea
-                    rows={3}
-                    value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
-                    placeholder="Esempio: 'Un gatto cibernetico neon, stile vaporwave, dettagliato, 4k'"
-                    className="w-full bg-panelbg border border-zinc-800 rounded-lg py-2 px-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
-                  />
-                  <button
-                    onClick={runImageGen}
-                    disabled={isGeneratingImage || !imagePrompt.trim()}
-                    className="w-full bg-zinc-100 hover:bg-zinc-200 disabled:opacity-50 text-zinc-950 font-bold py-2.5 rounded-lg text-xs transition"
-                  >
-                    {isGeneratingImage ? "Calcolo dei tensori..." : "Genera Immagine Locale"}
-                  </button>
-                </div>
-
-                <div className="p-3 bg-panelbg/60 border border-zinc-800/60 rounded-lg text-xs text-zinc-500">
-                  <span className="font-semibold text-zinc-400 block mb-1">Nota sulle prestazioni:</span>
-                  TinySD genera matrici da 512x512 pixel. Su computer con GPU dedicata o Apple Silicon richiede circa 3s, mentre su CPU older può richiedere fino a 15-20s.
-                </div>
-              </div>
-
-              {/* Generated Image display */}
-              <div className="p-4 bg-appbg border border-zinc-800 rounded-xl flex items-center justify-center min-h-[250px] relative">
-                {isGeneratingImage ? (
-                  <div className="text-center space-y-3 text-zinc-400 font-mono text-xs">
-                    <div className="w-8 h-8 rounded-full border-2 border-zinc-800 border-t-violet-500 animate-spin mx-auto"></div>
-                    <div>Rendering in corso (Uso GPU)...</div>
-                  </div>
-                ) : generatedImageUrl ? (
-                  <div className="text-center space-y-3 w-full">
-                    <img
-                      src={generatedImageUrl}
-                      alt="Local AI Generated"
-                      referrerPolicy="no-referrer"
-                      className="max-h-60 rounded-lg mx-auto border border-zinc-800 object-cover shadow-lg"
-                    />
-                    <div className="text-[10px] font-mono text-zinc-500">
-                      Immagine creata in <strong className="text-violet-400">{imageGenTime} secondi</strong> (Risoluzione: 512x512)
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-zinc-600 text-xs">
-                    Inserisci un prompt e genera per visualizzare il risultato.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
+
     </div>
   );
 }

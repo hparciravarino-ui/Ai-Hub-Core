@@ -16,6 +16,14 @@ export interface HardwareProfile {
   loadVram: number; // %
 }
 
+export interface FileEntry {
+  name: string;
+  kind: 'file' | 'directory';
+  handle: any;
+  size?: number;
+  path: string;
+}
+
 export type PerformanceProfileId = "eco" | "balanced" | "performance" | "turbo" | "quality";
 
 export interface PerformanceProfile {

@@ -19,7 +19,7 @@ import {
   Folder,
   BookOpen,
 } from "lucide-react";
-import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId } from "./types";
+import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId, FileEntry } from "./types";
 import { HARDWARE_PRESETS, MODEL_CATALOG, PLUGINS_LIST, SECURITY_LOGS, PERFORMANCE_PROFILES } from "./data";
 import { detectActualHardware } from "./utils";
 import Dashboard from "./components/Dashboard";
@@ -34,10 +34,13 @@ import SecurityCenter from "./components/SecurityCenter";
 import ProjectAnalyzer from "./components/ProjectAnalyzer";
 import AIEvolutionEngine from "./components/AIEvolutionEngine";
 import UserGuide from "./components/UserGuide";
+import FileManager from "./components/FileManager";
 import { getAuthHeaders } from "./utils";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const [workspaceEntries, setWorkspaceEntries] = useState<FileEntry[]>([]);
+  const [workspaceCurrentPath, setWorkspaceCurrentPath] = useState<string>('');
   const [selectedHardwareId, setSelectedHardwareId] = useState<string>("custom");
   const [currentHardware, setCurrentHardware] = useState<HardwareProfile>({
     id: "custom",
@@ -494,6 +497,18 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab("filemanager")}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "filemanager"
+                    ? "bg-zinc-800/60 text-white border-l-2 border-emerald-500"
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                <span>File & Storage IO</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab("guide")}
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-xs font-medium transition-all ${
                   activeTab === "guide"
@@ -531,6 +546,7 @@ export default function App() {
           )}
 
           {activeTab === "guide" && <UserGuide />}
+          {activeTab === "filemanager" && <FileManager entries={workspaceEntries} setEntries={setWorkspaceEntries} currentPath={workspaceCurrentPath} setCurrentPath={setWorkspaceCurrentPath} />}
 
           {activeTab === "models" && (
             <ModelManager
@@ -576,6 +592,7 @@ export default function App() {
               currentHardware={currentHardware}
               onDownloadModel={handleDownloadModel}
               onDeleteModel={handleDeleteModel}
+              workspaceEntries={workspaceEntries}
             />
           )}
 

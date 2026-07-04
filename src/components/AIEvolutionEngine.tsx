@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CognitiveMap from "./CognitiveMap";
+import { chatAPI } from "../apiClient";
 import {
   Brain,
   Database,
@@ -156,11 +157,15 @@ export default function AIEvolutionEngine() {
 function handleUserAuth(req, res) {
   const token = req.headers.authorization;
   if (token === "SUPER_SECRET_ADMIN_TOKEN") {
-    // Autenticazione bypassata per debug locale
+    // Rischio sicurezza: Hardcoded bypass
     return res.status(200).json({ role: "admin" });
   }
-  // TODO: Connettere a Firebase
-  return res.status(401).send("Non autorizzato");
+  
+  // Richiede validazione asincrona del DB
+  return validateToken(token).then(isValid => {
+      if (isValid) return res.status(200).json({ role: "user" });
+      return res.status(401).send("Non autorizzato");
+  }).catch(e => res.status(500).send("Errore Server"));
 }`);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState<{
@@ -259,7 +264,7 @@ function handleUserAuth(req, res) {
   };
 
   // Simulated Agent Debates
-  const handleStartAgentSimulation = (e: React.FormEvent) => {
+  const handleStartAgentSimulation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentPrompt.trim()) return;
 
@@ -267,76 +272,80 @@ function handleUserAuth(req, res) {
     setSimLogs([]);
     setSimStep(1);
 
-    // Step 1: Architect Agent analyzes structural boundaries
-    setTimeout(() => {
-      const archLog = {
+    try {
+      const response = await chatAPI(
+        `Esegui una simulazione di uno Swarm di AI su questa richiesta: "${agentPrompt}". Restituisci ESATTAMENTE un array JSON (e nient'altro) di 4 oggetti, dove ogni oggetto ha le seguenti chiavi: "agentId" (da 0 a 3 per Architect, Database, Frontend, Security), "text" (la risposta dell'agente), "confidence" (numero da 0 a 100). Esempio: [{"agentId": 0, "text": "...", "confidence": 95}, ...]`,
+        [],
+        "Sei un sistema di orchestrazione Multi-Agente."
+      );
+
+      const cleanedResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsedLogs = JSON.parse(cleanedResponse);
+
+      if (Array.isArray(parsedLogs)) {
+        for (let i = 0; i < parsedLogs.length; i++) {
+          const logData = parsedLogs[i];
+          const agentIndex = Math.min(Math.max(logData.agentId || i, 0), AGENTS_LIST.length - 1);
+          const newLog = {
+            agent: AGENTS_LIST[agentIndex],
+            text: logData.text || "Analisi completata.",
+            confidence: logData.confidence || 90
+          };
+          
+          await new Promise(resolve => setTimeout(resolve, 800)); // Simuliamo il delay di streaming visivo
+          setSimLogs(prev => [...prev, newLog]);
+          setSimStep(i + 2);
+        }
+      }
+    } catch (err) {
+      setSimLogs(prev => [...prev, {
         agent: AGENTS_LIST[0],
-        text: `In base alle specifiche dell'app: '${agentPrompt}', dobbiamo disaccoppiare la logica in un modulo indipendente. Consiglio di definire le interfacce TypeScript rigide in 'src/types.ts' prima di estendere la logica.`,
-        confidence: 96
-      };
-      setSimLogs(prev => [...prev, archLog]);
-      setSimStep(2);
-    }, 1200);
-
-    // Step 2: Database Agent inspects schemas
-    setTimeout(() => {
-      const dbLog = {
-        agent: AGENTS_LIST[3],
-        text: `Se stiamo memorizzando preferenze a lungo termine, utilizzeremo il database locale SQLite con cifratura SQLCipher. Genero schemi DDL pronti con indici unici su 'user_id' per evitare collisioni.`,
-        confidence: 94
-      };
-      setSimLogs(prev => [...prev, dbLog]);
-      setSimStep(3);
-    }, 2800);
-
-    // Step 3: Security Agent audits threats
-    setTimeout(() => {
-      const secLog = {
-        agent: AGENTS_LIST[4],
-        text: `Attenzione alle chiavi API e alle SQL Injection! Per SQLite usiamo query parametrizzate. Disabilitiamo il parser dinamico eval() che potrebbe essere sfruttato se memorizziamo prompt non igienizzati.`,
-        confidence: 99
-      };
-      setSimLogs(prev => [...prev, secLog]);
-      setSimStep(4);
-    }, 4500);
-
-    // Step 4: Frontend Agent designs presentation layout
-    setTimeout(() => {
-      const frontLog = {
-        agent: AGENTS_LIST[2],
-        text: `Implementerò un'interfaccia ad altissima fedeltà divisa in pannelli bento responsive con Tailwind CSS, micro-interazioni di feedback immediati, e rendering de-bouncato in base allo stato reattivo.`,
-        confidence: 91
-      };
-      setSimLogs(prev => [...prev, frontLog]);
+        text: `Errore durante la simulazione: ${err instanceof Error ? err.message : String(err)}`,
+        confidence: 0
+      }]);
+    } finally {
       setIsSimulatingAgents(false);
       setSimStep(5);
-    }, 6200);
+    }
   };
 
   // Safe Laboratory evaluation
-  const handleEvaluateCode = () => {
+  const handleEvaluateCode = async () => {
+    if (!sandboxCode.trim()) return;
     setIsEvaluating(true);
     setEvalResult(null);
 
-    setTimeout(() => {
-      const score = sandboxCode.includes("SUPER_SECRET_ADMIN_TOKEN") ? 42 : 89;
-      const vulns = [];
-      if (sandboxCode.includes("SUPER_SECRET_ADMIN_TOKEN")) {
-        vulns.push("Sanitizzazione bypassata (Token Hardcoded Admin)");
-      }
-      if (sandboxCode.includes("TODO:")) {
-        vulns.push("Utilizzo di frammenti incompleti (Codice Morto)");
-      }
+    try {
+      const response = await chatAPI(
+        `Analizza il seguente codice e restituisci ESATTAMENTE un oggetto JSON valido (e nient'altro) con le seguenti chiavi: "reliabilityScore" (numero 0-100), "logicalCheck" (stringa), "securityAudit" (stringa), "performanceImpact" (stringa), "vulnerabilitiesDetected" (array di stringhe).
+        
+        Codice:
+        ${sandboxCode}`,
+        [],
+        "Sei un Code Reviewer e Auditor di Sicurezza."
+      );
+
+      const cleanedResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsedResult = JSON.parse(cleanedResponse);
 
       setEvalResult({
-        reliabilityScore: score,
-        logicalCheck: score < 50 ? "Rilevata potenziale contraddizione logica: un bypass di autenticazione è attivo nel contesto locale mentre si dichiara che l'applicazione è in produzione." : "Verifica logica superata. Tutti gli input sono gestiti tramite tipi rigidi.",
-        securityAudit: score < 50 ? "Vulnerabilità Severa! Token o chiavi sensibili caricate direttamente nello script." : "Nessuna chiave di backend o credenziale esposta rilevata.",
-        performanceImpact: "Basso utilizzo RAM. Il garbage collector pulirà i frame al termine della chiamata.",
-        vulnerabilitiesDetected: vulns
+        reliabilityScore: parsedResult.reliabilityScore || 0,
+        logicalCheck: parsedResult.logicalCheck || "Verifica completata.",
+        securityAudit: parsedResult.securityAudit || "Audit completato.",
+        performanceImpact: parsedResult.performanceImpact || "N/A",
+        vulnerabilitiesDetected: parsedResult.vulnerabilitiesDetected || []
       });
+    } catch (err) {
+      setEvalResult({
+        reliabilityScore: 0,
+        logicalCheck: "Errore durante l'analisi logica.",
+        securityAudit: `Impossibile completare l'audit: ${err instanceof Error ? err.message : String(err)}`,
+        performanceImpact: "N/A",
+        vulnerabilitiesDetected: ["Errore del sistema di valutazione API"]
+      });
+    } finally {
       setIsEvaluating(false);
-    }, 1500);
+    }
   };
 
   // Adapters toggler

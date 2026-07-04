@@ -50,7 +50,7 @@ import {
   Maximize2,
   Info
 } from "lucide-react";
-import { Model, ChatMessage, HardwareProfile } from "../types";
+import { Model, ChatMessage, HardwareProfile, FileEntry } from "../types";
 import { getAuthHeaders } from "../utils";
 
 // Types for the advanced chat system
@@ -106,6 +106,7 @@ interface ProfessionalChatProps {
   currentHardware: HardwareProfile;
   onDownloadModel?: (modelId: string) => void;
   onDeleteModel?: (modelId: string) => void;
+  workspaceEntries?: FileEntry[];
 }
 
 // Initial presets
@@ -240,71 +241,7 @@ export default function ProfessionalChat({
         console.error("Failed to parse local storage chats", e);
       }
     } else {
-      // Seed some demo chats
-      const seedChats: ChatSession[] = [
-        {
-          id: "chat_demo_1",
-          title: "Inizializzazione Configurazione Server",
-          createdTime: new Date(Date.now() - 3600000 * 2).toLocaleString(),
-          lastModified: new Date(Date.now() - 3600000 * 2).toLocaleString(),
-          modelId: "llama_3_2_3b",
-          inferenceProfile: "balanced",
-          messageCount: 2,
-          totalTokens: 420,
-          totalProcessingTime: 12,
-          tags: ["Server", "Docker", "Nginx"],
-          category: "Coding",
-          projectId: "proj_coding",
-          status: "active",
-          parameters: {
-            temperature: 0.5,
-            topP: 0.85,
-            topK: 40,
-            contextWindow: 4096,
-            maxTokens: 1024,
-            systemPrompt: "Sei un sistemista senior esperto.",
-            initialContext: "",
-            language: "Italiano"
-          },
-          summary: "Configurazione di un proxy inverso Docker Nginx con certificati SSL crittografati.",
-          messages: [
-            { id: "msg_1", role: "user", content: "Come posso configurare un reverse proxy Docker con nginx per un'applicazione Node.js?", timestamp: "10:12" },
-            { id: "msg_2", role: "assistant", content: "Ecco una configurazione standard e sicura utilizzando Docker Compose e Nginx.\n\n```yaml\nversion: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./nginx.conf:/etc/nginx/nginx.conf:ro\n```\nFunziona completamente offline in modalità sandbox.", timestamp: "10:13" }
-          ]
-        },
-        {
-          id: "chat_demo_2",
-          title: "Analisi di Mercato Q2",
-          createdTime: new Date(Date.now() - 3600000 * 24).toLocaleString(),
-          lastModified: new Date(Date.now() - 3600000 * 23).toLocaleString(),
-          modelId: "gemma_2_2b",
-          inferenceProfile: "performance",
-          messageCount: 4,
-          totalTokens: 1280,
-          totalProcessingTime: 45,
-          tags: ["Business", "Finanza"],
-          category: "Analista",
-          projectId: "proj_finance",
-          status: "favorite",
-          parameters: {
-            temperature: 0.7,
-            topP: 0.9,
-            topK: 50,
-            contextWindow: 8192,
-            maxTokens: 2048,
-            systemPrompt: "Sei un analista di mercato.",
-            initialContext: "",
-            language: "Italiano"
-          },
-          summary: "Valutazione dei trend commerciali emergenti con attenzione alle startup SaaS B2B.",
-          messages: [
-            { id: "m_u1", role: "user", content: "Quali sono i trend emergenti SaaS B2B per quest'anno?", timestamp: "Ieri 09:30" },
-            { id: "m_a1", role: "assistant", content: "I trend SaaS B2B dominanti si concentrano su:\n1. Integrazione locale di modelli LLM compatti (Edge AI) per massima privacy.\n2. Architettura componibile senza server.\n3. Strumenti analitici predittivi dedicati.", timestamp: "Ieri 09:32" }
-          ]
-        }
-      ];
-      setChats(seedChats);
-      localStorage.setItem("ai_hub_pro_chats", JSON.stringify(seedChats));
+      setChats([]);
     }
 
     if (savedProjects) {
@@ -549,8 +486,17 @@ export default function ProfessionalChat({
     
     // Build context
     let promptText = userMessageContent;
+    
+    let workspaceContext = "";
+    if (workspaceEntries && workspaceEntries.length > 0) {
+      const paths = workspaceEntries.map(e => e.path).slice(0, 100).join("\n- ");
+      workspaceContext = `\n--- WORKSPACE DIRECTORY LINKED ---\nThe following files are available in the linked workspace:\n- ${paths}\n(If the user asks to analyze these files, you have access to their structure. Detailed file contents can be retrieved via the File Manager module.)\n--------------------------------\n\n`;
+    }
+
     if (formAttachments.length > 0) {
-      promptText = `ALLEGATI INTEGRATI (RAG LOCALE):\n` + formAttachments.map(a => `[File: ${a.name}]\n${a.ocrText || "[Contenuto indicizzato]"}`).join("\n") + `\n\nDOMANDA UTENTE:\n${userMessageContent}`;
+      promptText = workspaceContext + `ALLEGATI INTEGRATI (RAG LOCALE):\n` + formAttachments.map(a => `[File: ${a.name}]\n${a.ocrText || "[Contenuto indicizzato]"}`).join("\n") + `\n\nDOMANDA UTENTE:\n${userMessageContent}`;
+    } else if (workspaceContext) {
+      promptText = workspaceContext + `DOMANDA UTENTE:\n${userMessageContent}`;
     }
 
     // Call API proxy
@@ -1796,6 +1742,14 @@ export default function ProfessionalChat({
                   </span>
                 </div>
               </div>
+
+              {/* Workspace indicator */}
+              {workspaceEntries && workspaceEntries.length > 0 && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1 bg-emerald-950/20 border border-emerald-900/30 rounded text-[10px] text-emerald-400 font-mono">
+                  <Folder className="w-3 h-3" />
+                  <span>Workspace Locale Connesso: {workspaceEntries.length} file/cartelle indicizzati per l'analisi AI.</span>
+                </div>
+              )}
 
               {/* Chat Input form and interrupt action */}
               <form onSubmit={handleSendMessage} className="space-y-2">
