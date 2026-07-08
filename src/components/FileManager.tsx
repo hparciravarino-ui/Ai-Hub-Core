@@ -157,21 +157,19 @@ const FileManager: React.FC<FileManagerProps> = ({ entries, setEntries, currentP
       return;
     }
     
+    const originalText = fileContent;
     setIsProcessing(true);
     setFileContent("Inizializzazione elaborazione...\n");
     
     try {
       // Chunking simulation/real text processing logic
       const chunkSize = 10000;
-      const totalChunks = Math.ceil(fileContent.length / chunkSize);
-      
-      let processedText = "";
+      const totalChunks = Math.ceil(originalText.length / chunkSize);
       
       for (let i = 0; i < totalChunks; i++) {
-        // Here we could realistically send to an API, for now we process locally
-        const chunk = fileContent.slice(i * chunkSize, (i + 1) * chunkSize);
+        const chunk = originalText.slice(i * chunkSize, (i + 1) * chunkSize);
         // Simulate a tiny delay to yield to the main thread for very large files
-        await new Promise(resolve => setTimeout(resolve, 50)); 
+        await new Promise(resolve => setTimeout(resolve, 30)); 
         
         const progress = Math.round(((i + 1) / totalChunks) * 100);
         const barLength = 20;
@@ -180,11 +178,36 @@ const FileManager: React.FC<FileManagerProps> = ({ entries, setEntries, currentP
         
         setFileContent(`Elaborazione chunk ${i + 1} di ${totalChunks} (${chunk.length} bytes)...\n[${bar}] ${progress}%\n\nDimensione totale processata: ${(i + 1) * chunkSize} bytes`);
       }
+
+      // Real integration: send the content to backend RAG ingest API
+      const response = await fetch("/api/knowledge/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: originalText,
+          filename: selectedEntry.name,
+          mimeType: "text/plain",
+          author: "user"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Errore durante l'ingest RAG sul server.");
+      }
+
+      // Update parent state entries to include the content and mark as indexed
+      const updatedEntries = entries.map(e => {
+        if (e.path === selectedEntry.path) {
+          return { ...e, content: originalText, indexed: true };
+        }
+        return e;
+      });
+      setEntries(updatedEntries);
       
-      setFileContent(`Elaborazione completata con successo.\nI dati sono stati caricati, validati e indicizzati localmente.\n[${"=".repeat(20)}] 100%\n\nFile pronto per l'analisi nel Workspace AI.`);
+      setFileContent(`Elaborazione completata con successo.\nI dati sono stati caricati, validati e indicizzati nel database vettoriale RAG dell'applicazione sul server.\n[${"=".repeat(20)}] 100%\n\nFile pronto per l'analisi intelligente nel modulo Chat Pro!`);
     } catch (err: any) {
       setError(`Errore durante l'elaborazione del file: ${err.message}`);
-      setFileContent(fileContent); // Restore original
+      setFileContent(originalText); // Restore original
     } finally {
       setIsProcessing(false);
     }
@@ -255,11 +278,16 @@ const FileManager: React.FC<FileManagerProps> = ({ entries, setEntries, currentP
                   }`}
                 >
                   {entry.kind === 'directory' ? (
-                    <FolderOpen className="w-4 h-4 text-emerald-500" />
+                    <FolderOpen className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
-                    <FileText className="w-4 h-4 text-zinc-400" />
+                    <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
                   )}
-                  <span className="text-sm truncate font-mono">{entry.name}</span>
+                  <span className="text-sm truncate font-mono flex-1">{entry.name}</span>
+                  {entry.indexed && (
+                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px] font-semibold font-mono uppercase shrink-0">
+                      RAG OK
+                    </span>
+                  )}
                 </button>
               ))
             ) : (

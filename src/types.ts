@@ -25,6 +25,8 @@ export interface FileEntry {
   handle: any;
   size?: number;
   path: string;
+  content?: string;
+  indexed?: boolean;
 }
 
 export type PerformanceProfileId = "eco" | "balanced" | "performance" | "turbo" | "quality";

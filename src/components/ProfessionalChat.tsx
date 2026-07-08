@@ -107,6 +107,7 @@ interface ProfessionalChatProps {
   onDownloadModel?: (modelId: string) => void;
   onDeleteModel?: (modelId: string) => void;
   workspaceEntries?: FileEntry[];
+  setWorkspaceEntries?: (entries: FileEntry[]) => void;
 }
 
 // Initial presets
@@ -131,7 +132,8 @@ export default function ProfessionalChat({
   currentHardware,
   onDownloadModel,
   onDeleteModel,
-  workspaceEntries
+  workspaceEntries,
+  setWorkspaceEntries
 }: ProfessionalChatProps) {
   // Database state persisting to LocalStorage
   const [chats, setChats] = useState<ChatSession[]>([]);
@@ -198,6 +200,12 @@ export default function ProfessionalChat({
     elapsed: 0,
     tokensGenerated: 0
   });
+
+  // Workspace File Analysis Integration States
+  const [selectedWorkspaceFiles, setSelectedWorkspaceFiles] = useState<string[]>([]);
+  const [workspacePanelOpen, setWorkspacePanelOpen] = useState<boolean>(true);
+  const [ragMode, setRagMode] = useState<boolean>(true);
+  const [indexingFile, setIndexingFile] = useState<string | null>(null);
 
   // Cloud backup & sync mock states
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(false);
@@ -444,6 +452,49 @@ export default function ProfessionalChat({
     setIsAddingProject(false);
   };
 
+  const indexFileFromChat = async (entry: FileEntry) => {
+    if (entry.kind !== 'file' || !entry.handle) return;
+    setIndexingFile(entry.path);
+    try {
+      const file = await entry.handle.getFile();
+      const text = await file.text();
+      
+      // Ingest text into server RAG database
+      const response = await fetch("/api/knowledge/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: text,
+          filename: entry.name,
+          mimeType: "text/plain",
+          author: "user"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Errore durante l'ingest RAG sul server.");
+      }
+
+      // Update parent state entries to include the content and mark as indexed
+      if (setWorkspaceEntries && workspaceEntries) {
+        const updated = workspaceEntries.map(e => {
+          if (e.path === entry.path) {
+            return { ...e, content: text, indexed: true };
+          }
+          return e;
+        });
+        setWorkspaceEntries(updated);
+      }
+      
+      // Automatically toggle selected file for direct context analysis
+      setSelectedWorkspaceFiles(prev => [...prev, entry.path]);
+    } catch (err: any) {
+      alert(`Errore nell'indicizzazione del file ${entry.name}: ${err.message}`);
+    } finally {
+      setIndexingFile(null);
+    }
+  };
+
   // Active chat instance
   const activeChat = chats.find(c => c.id === selectedChatId);
 
@@ -488,16 +539,46 @@ export default function ProfessionalChat({
     // Build context
     let promptText = userMessageContent;
     
-    let workspaceContext = "";
-    if (workspaceEntries && workspaceEntries.length > 0) {
-      const paths = workspaceEntries.map(e => e.path).slice(0, 100).join("\n- ");
-      workspaceContext = `\n--- WORKSPACE DIRECTORY LINKED ---\nThe following files are available in the linked workspace:\n- ${paths}\n(If the user asks to analyze these files, you have access to their structure. Detailed file contents can be retrieved via the File Manager module.)\n--------------------------------\n\n`;
+    // 1. Direct file content context
+    let directFileContext = "";
+    const selectedFilesWithContent = workspaceEntries?.filter(e => selectedWorkspaceFiles.includes(e.path) && e.content) || [];
+    if (selectedFilesWithContent.length > 0) {
+      directFileContext = "\n--- CONTENUTO FILE SELEZIONATI PER ANALISI ---\n" + 
+        selectedFilesWithContent.map(e => `[File: ${e.name}]\nPercorso: ${e.path}\nContenuto:\n${e.content}\n--- FINE FILE ${e.name} ---`).join("\n\n") + 
+        "\n---------------------------------------------\n\n";
     }
 
+    // 2. Semantic RAG search context
+    let ragSemanticContext = "";
+    if (ragMode) {
+      try {
+        const res = await fetch(`/api/knowledge/search?q=${encodeURIComponent(userMessageContent)}&topK=3`);
+        if (res.ok) {
+          const searchResults = await res.json();
+          if (searchResults && searchResults.length > 0) {
+            ragSemanticContext = "\n--- RISULTATI RAG SEMANTICO RILEVANTI (DALLO WORKSPACE) ---\n" + 
+              searchResults.map((r: any, idx: number) => `Frammento ${idx+1} [Fonte: ${r.metadata?.source || "Sconosciuta"}]:\n${r.text}`).join("\n\n") + 
+              "\n------------------------------------------------------------\n\n";
+          }
+        }
+      } catch (e) {
+        console.error("Semantic RAG search failed:", e);
+      }
+    }
+
+    // 3. Workspace structure overview
+    let pathsOverview = "";
+    if (workspaceEntries && workspaceEntries.length > 0) {
+      const paths = workspaceEntries.map(e => `- ${e.path} (${e.indexed ? 'Indicizzato RAG' : 'Non indicizzato'})`).join("\n");
+      pathsOverview = `\n--- STRUTTURA DEL WORKSPACE COLLEGATO ---\nI seguenti file sono mappati nel workspace:\n${paths}\n-----------------------------------------\n\n`;
+    }
+
+    const finalWorkspaceContext = pathsOverview + directFileContext + ragSemanticContext;
+
     if (formAttachments.length > 0) {
-      promptText = workspaceContext + `ALLEGATI INTEGRATI (RAG LOCALE):\n` + formAttachments.map(a => `[File: ${a.name}]\n${a.ocrText || "[Contenuto indicizzato]"}`).join("\n") + `\n\nDOMANDA UTENTE:\n${userMessageContent}`;
-    } else if (workspaceContext) {
-      promptText = workspaceContext + `DOMANDA UTENTE:\n${userMessageContent}`;
+      promptText = finalWorkspaceContext + `ALLEGATI INTEGRATI (RAG LOCALE):\n` + formAttachments.map(a => `[File: ${a.name}]\n${a.ocrText || "[Contenuto indicizzato]"}`).join("\n") + `\n\nDOMANDA UTENTE:\n${userMessageContent}`;
+    } else if (finalWorkspaceContext) {
+      promptText = finalWorkspaceContext + `DOMANDA UTENTE:\n${userMessageContent}`;
     }
 
     // Call API proxy
@@ -1309,6 +1390,22 @@ export default function ProfessionalChat({
                   <span>Comprimi Contesto</span>
                 </button>
 
+                {/* Workspace Files Sidebar toggle */}
+                {workspaceEntries && workspaceEntries.length > 0 && (
+                  <button
+                    onClick={() => setWorkspacePanelOpen(!workspacePanelOpen)}
+                    className={`border px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition flex items-center gap-1.5 ${
+                      workspacePanelOpen 
+                        ? "bg-emerald-950/40 border-emerald-900 text-emerald-300"
+                        : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-emerald-400"
+                    }`}
+                    title="Mostra / Nascondi pannello di analisi dei file di workspace"
+                  >
+                    <Folder className="w-3 h-3 text-emerald-400" />
+                    <span>Analisi Workspace ({workspaceEntries.filter(e => e.indexed).length}/{workspaceEntries.filter(e => e.kind === 'file').length})</span>
+                  </button>
+                )}
+
                 {/* Model comparison switcher */}
                 <button
                   onClick={() => {
@@ -1369,117 +1466,214 @@ export default function ProfessionalChat({
               </div>
             )}
 
-            {/* 2. Chat Bubble Messages (Scrollable) */}
-            <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[400px] scrollbar-thin scrollbar-thumb-zinc-850" id="chat-messages-container">
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
               
-              {/* Show context summary if present */}
-              {activeChat?.summary && (
-                <div className="p-3 bg-zinc-950/80 border border-zinc-850 rounded-xl text-xs space-y-1 relative overflow-hidden">
-                  <div className="absolute right-0 top-0 bg-emerald-500/10 border-l border-b border-emerald-900/60 px-2 py-0.5 rounded-bl font-mono text-[8px] text-emerald-400 font-bold uppercase tracking-wider">
-                    Memoria Contestuale
-                  </div>
-                  <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-wide">Riassunto Lungo Termine</span>
-                  <p className="text-zinc-500 italic text-[11px] leading-relaxed">
-                    "{activeChat.summary}"
-                  </p>
-                </div>
-              )}
-
-              {activeChat?.messages.length === 0 && !streamingText && (
-                <div className="text-center py-16 text-zinc-600 text-xs italic space-y-2">
-                  <Bot className="w-10 h-10 text-zinc-700 mx-auto mb-2 animate-bounce" />
-                  <span>Canale sintonizzato locale attivo. Scrivi una richiesta in basso.</span>
-                </div>
-              )}
-
-              {/* Messages map */}
-              {activeChat?.messages.map((msg, index) => {
-                const isUser = msg.role === "user";
-                return (
-                  <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                    <div className={`flex items-start space-x-2.5 max-w-[85%] ${isUser ? "flex-row-reverse space-x-reverse" : "flex-row"}`}>
-                      
-                      {/* Avatar */}
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                        isUser 
-                          ? "bg-zinc-800 text-zinc-200" 
-                          : "bg-emerald-950/40 text-emerald-400 border border-emerald-900/60"
-                      }`}>
-                        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+              {/* Message scroll container */}
+              <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                {/* 2. Chat Bubble Messages (Scrollable) */}
+                <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[450px] min-h-[350px] scrollbar-thin scrollbar-thumb-zinc-850" id="chat-messages-container">
+                  
+                  {/* Show context summary if present */}
+                  {activeChat?.summary && (
+                    <div className="p-3 bg-zinc-950/80 border border-zinc-850 rounded-xl text-xs space-y-1 relative overflow-hidden">
+                      <div className="absolute right-0 top-0 bg-emerald-500/10 border-l border-b border-emerald-900/60 px-2 py-0.5 rounded-bl font-mono text-[8px] text-emerald-400 font-bold uppercase tracking-wider">
+                        Memoria Contestuale
                       </div>
-
-                      {/* Content Bubble */}
-                      <div className={`p-3.5 rounded-xl text-xs leading-relaxed ${
-                        isUser 
-                          ? "bg-zinc-100 text-zinc-950 font-medium" 
-                          : "bg-barbg text-zinc-200 border border-zinc-850"
-                      }`}>
-                        
-                        {/* Text Content with code highlight mock */}
-                        <div className="whitespace-pre-line font-sans prose prose-invert">
-                          {msg.content}
-                        </div>
-
-                        {/* Versions Selector if edit exists */}
-                        {msg.versions && msg.versions.length > 1 && (
-                          <div className="mt-2 pt-1 border-t border-zinc-850 flex items-center gap-2 text-[9px] text-zinc-500">
-                            <span>Alternate Reply Version {msg.activeVersionIndex! + 1}/{msg.versions.length}</span>
-                            <button className="hover:text-emerald-400">← Prec</button>
-                            <button className="hover:text-emerald-400">Succ →</button>
-                          </div>
-                        )}
-
-                        {/* Footer message tags & copy */}
-                        <div className="text-[8px] text-zinc-500 font-mono mt-2 text-right flex justify-between items-center gap-4">
-                          <span>LOCAL SANDBOX SECURE</span>
-                          <span>{msg.timestamp}</span>
-                        </div>
-
-                      </div>
-
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Streaming Responses (Dual column support) */}
-              {(streamingText || isGenerating) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Current Active Model stream column */}
-                  <div className="flex justify-start">
-                    <div className="flex items-start space-x-2.5 max-w-full">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4" />
-                      </div>
-                      <div className="p-3.5 bg-barbg text-zinc-200 border border-zinc-850 rounded-xl text-xs leading-relaxed max-w-full">
-                        <div className="whitespace-pre-line prose prose-invert">
-                          {streamingText || "Inference Engine locale attiva..."}
-                          {isGenerating && <span className="inline-block w-1.5 h-3.5 bg-emerald-500 ml-1 animate-pulse"></span>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Comparison model stream column */}
-                  {comparisonActive && (
-                    <div className="flex justify-start">
-                      <div className="flex items-start space-x-2.5 max-w-full">
-                        <div className="w-7 h-7 rounded-lg bg-violet-950/40 text-violet-400 border border-violet-900/60 flex items-center justify-center shrink-0">
-                          <Bot className="w-4 h-4" />
-                        </div>
-                        <div className="p-3.5 bg-barbg text-zinc-200 border border-violet-900/40 rounded-xl text-xs leading-relaxed max-w-full">
-                          <div className="text-[10px] text-violet-400 font-mono uppercase mb-1 font-bold">
-                            Risposta comparativa: {availableModels.find(m => m.id === comparisonModelId)?.name || "Model"}
-                          </div>
-                          <div className="whitespace-pre-line prose prose-invert italic">
-                            {streamingText ? (streamingText + "\n\n*(Nota: Calcolo dei pesi alternativo per sintonizzare il confronto)*") : "In attesa dell'altro canale..."}
-                            {isGenerating && <span className="inline-block w-1.5 h-3.5 bg-violet-400 ml-1 animate-pulse"></span>}
-                          </div>
-                        </div>
-                      </div>
+                      <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-wide">Riassunto Lungo Termine</span>
+                      <p className="text-zinc-500 italic text-[11px] leading-relaxed">
+                        "{activeChat.summary}"
+                      </p>
                     </div>
                   )}
 
+                  {activeChat?.messages.length === 0 && !streamingText && (
+                    <div className="text-center py-16 text-zinc-600 text-xs italic space-y-2">
+                      <Bot className="w-10 h-10 text-zinc-700 mx-auto mb-2 animate-bounce" />
+                      <span>Canale sintonizzato locale attivo. Scrivi una richiesta in basso.</span>
+                    </div>
+                  )}
+
+                  {/* Messages map */}
+                  {activeChat?.messages.map((msg, index) => {
+                    const isUser = msg.role === "user";
+                    return (
+                      <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                        <div className={`flex items-start space-x-2.5 max-w-[85%] ${isUser ? "flex-row-reverse space-x-reverse" : "flex-row"}`}>
+                          
+                          {/* Avatar */}
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                            isUser 
+                              ? "bg-zinc-800 text-zinc-200" 
+                              : "bg-emerald-950/40 text-emerald-400 border border-emerald-900/60"
+                          }`}>
+                            {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                          </div>
+
+                          {/* Content Bubble */}
+                          <div className={`p-3.5 rounded-xl text-xs leading-relaxed ${
+                            isUser 
+                              ? "bg-zinc-100 text-zinc-950 font-medium" 
+                              : "bg-barbg text-zinc-200 border border-zinc-850"
+                          }`}>
+                            
+                            {/* Text Content with code highlight mock */}
+                            <div className="whitespace-pre-line font-sans prose prose-invert">
+                              {msg.content}
+                            </div>
+
+                            {/* Versions Selector if edit exists */}
+                            {msg.versions && msg.versions.length > 1 && (
+                              <div className="mt-2 pt-1 border-t border-zinc-850 flex items-center gap-2 text-[9px] text-zinc-500">
+                                <span>Alternate Reply Version {msg.activeVersionIndex! + 1}/{msg.versions.length}</span>
+                                <button className="hover:text-emerald-400">← Prec</button>
+                                <button className="hover:text-emerald-400">Succ →</button>
+                              </div>
+                            )}
+
+                            {/* Footer message tags & copy */}
+                            <div className="text-[8px] text-zinc-500 font-mono mt-2 text-right flex justify-between items-center gap-4">
+                              <span>LOCAL SANDBOX SECURE</span>
+                              <span>{msg.timestamp}</span>
+                            </div>
+
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Streaming Responses (Dual column support) */}
+                  {(streamingText || isGenerating) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Current Active Model stream column */}
+                      <div className="flex justify-start">
+                        <div className="flex items-start space-x-2.5 max-w-full">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 flex items-center justify-center shrink-0">
+                            <Bot className="w-4 h-4" />
+                          </div>
+                          <div className="p-3.5 bg-barbg text-zinc-200 border border-zinc-850 rounded-xl text-xs leading-relaxed max-w-full">
+                            <div className="whitespace-pre-line prose prose-invert">
+                              {streamingText || "Inference Engine locale attiva..."}
+                              {isGenerating && <span className="inline-block w-1.5 h-3.5 bg-emerald-500 ml-1 animate-pulse"></span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comparison model stream column */}
+                      {comparisonActive && (
+                        <div className="flex justify-start">
+                          <div className="flex items-start space-x-2.5 max-w-full">
+                            <div className="w-7 h-7 rounded-lg bg-violet-950/40 text-violet-400 border border-violet-900/60 flex items-center justify-center shrink-0">
+                              <Bot className="w-4 h-4" />
+                            </div>
+                            <div className="p-3.5 bg-barbg text-zinc-200 border border-violet-900/40 rounded-xl text-xs leading-relaxed max-w-full">
+                              <div className="text-[10px] text-violet-400 font-mono uppercase mb-1 font-bold">
+                                Risposta comparativa: {availableModels.find(m => m.id === comparisonModelId)?.name || "Model"}
+                              </div>
+                              <div className="whitespace-pre-line prose prose-invert italic">
+                                {streamingText ? (streamingText + "\n\n*(Nota: Calcolo dei pesi alternativo per sintonizzare il confronto)*") : "In attesa dell'altro canale..."}
+                                {isGenerating && <span className="inline-block w-1.5 h-3.5 bg-violet-400 ml-1 animate-pulse"></span>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+              {/* Collapsible Workspace File Integration Sidebar */}
+              {workspacePanelOpen && workspaceEntries && workspaceEntries.length > 0 && (
+                <div className="w-full md:w-80 bg-zinc-950 border-l border-zinc-850 flex flex-col min-h-[350px] overflow-hidden shrink-0 animate-in slide-in-from-right duration-200" id="workspace-rag-sidebar">
+                  <div className="p-3 border-b border-zinc-850 bg-zinc-900/40 flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <FolderOpen className="w-3.5 h-3.5 animate-pulse" /> Analisi File Workspace
+                    </span>
+                    <button 
+                      onClick={() => setWorkspacePanelOpen(false)}
+                      className="text-zinc-500 hover:text-zinc-300 p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="p-3 border-b border-zinc-850 bg-zinc-900/20 space-y-2">
+                    {/* Live RAG Mode toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={ragMode} 
+                        onChange={(e) => setRagMode(e.target.checked)}
+                        className="rounded bg-zinc-900 border-zinc-850 text-emerald-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-semibold text-zinc-300">RAG Semantic Search</span>
+                    </label>
+                    <p className="text-[10px] text-zinc-500 leading-normal pl-5">
+                      Cerca automaticamente frammenti rilevanti dal database vettoriale e li inietta nel prompt.
+                    </p>
+                  </div>
+
+                  {/* Scrollable File List */}
+                  <div className="flex-1 overflow-y-auto p-2.5 space-y-2 max-h-[320px]">
+                    <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest block px-1 mb-1">Seleziona File per Analisi:</span>
+                    {workspaceEntries.filter(e => e.kind === 'file').map((entry) => {
+                      const isSelected = selectedWorkspaceFiles.includes(entry.path);
+                      return (
+                        <div key={entry.path} className="p-2 rounded bg-zinc-900/60 border border-zinc-850/50 flex flex-col gap-1.5 transition-all hover:border-zinc-800">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                              <span className="text-xs font-mono text-zinc-200 truncate" title={entry.path}>
+                                {entry.name}
+                              </span>
+                            </div>
+                            
+                            {entry.indexed ? (
+                              <label className="flex items-center shrink-0">
+                                <input 
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    if (isSelected) {
+                                      setSelectedWorkspaceFiles(prev => prev.filter(p => p !== entry.path));
+                                    } else {
+                                      setSelectedWorkspaceFiles(prev => [...prev, entry.path]);
+                                    }
+                                  }}
+                                  className="rounded bg-zinc-950 border-zinc-850 text-emerald-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                  title="Includi intero file nel contesto"
+                                />
+                              </label>
+                            ) : (
+                              <button
+                                onClick={() => indexFileFromChat(entry)}
+                                disabled={indexingFile === entry.path}
+                                className="bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded text-[9px] font-mono font-semibold uppercase disabled:opacity-50"
+                              >
+                                {indexingFile === entry.path ? (
+                                  <RefreshCw className="w-2.5 h-2.5 animate-spin inline mr-0.5" />
+                                ) : "Indicizza"}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[9px] text-zinc-500 font-mono">
+                            <span>{entry.size ? `${(entry.size / 1024).toFixed(1)} KB` : "Dim. Sconosciuta"}</span>
+                            {entry.indexed ? (
+                              <span className="text-emerald-400 font-bold uppercase tracking-wider">RAG OK</span>
+                            ) : (
+                              <span className="text-zinc-600">Non indicizzato</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

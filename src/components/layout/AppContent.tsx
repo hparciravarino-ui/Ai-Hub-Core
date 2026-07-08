@@ -128,6 +128,7 @@ export function AppContent(props: any) {
           onDownloadModel={rest.handleDownloadModel}
           onDeleteModel={rest.handleDeleteModel}
           workspaceEntries={rest.workspaceEntries}
+          setWorkspaceEntries={rest.setWorkspaceEntries}
         />
       )}
 
