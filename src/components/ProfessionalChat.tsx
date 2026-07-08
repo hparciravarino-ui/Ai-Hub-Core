@@ -1107,375 +1107,166 @@ export default function ProfessionalChat({
         {isCreatingNewChat ? (
           
           /* VIEW A: NEW CHAT SETUP SCREEN */
-          <div className="bg-panelbg border border-zinc-800 rounded-xl p-6 space-y-6 flex-1 flex flex-col justify-between" id="new-chat-config-form">
-            <div>
-              <div className="flex items-center space-x-2 border-b border-zinc-800 pb-4 mb-5">
-                <Sparkles className="w-5 h-5 text-emerald-400" />
-                <div>
-                  <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">Configurazione Sessione Chat Locale</h2>
-                  <p className="text-xs text-zinc-500">Configura i parametri del sandbox prima di sintonizzare i pesi in RAM.</p>
+          <div className="flex-1 flex flex-col justify-center items-center p-6 bg-appbg" id="new-chat-config-form">
+            <div className="w-full max-w-3xl space-y-6">
+              
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4 border border-emerald-500/20">
+                  <Sparkles className="w-8 h-8 text-emerald-400" />
                 </div>
+                <h2 className="text-2xl font-bold text-zinc-100">Inizia una nuova conversazione</h2>
+                <p className="text-sm text-zinc-400 mt-2">Scegli un modello locale o imposta il contesto per iniziare.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-panelbg border border-zinc-800/50 rounded-2xl p-6 shadow-xl space-y-6">
                 
-                {/* Panel left: Core config */}
-                <div className="space-y-4">
-                  
-                  {/* Select AI Model */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Modello AI locale</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Model Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-300">Modello AI Locale</label>
                     <select
                       value={formModelId}
                       onChange={(e) => setFormModelId(e.target.value)}
-                      className="w-full bg-appbg border border-zinc-800 text-xs text-zinc-100 rounded-lg p-2.5 focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-appbg border border-zinc-800 text-sm text-zinc-100 rounded-xl p-3 focus:outline-none focus:border-emerald-500 transition-colors"
                     >
                       {availableModels.map(m => (
                         <option key={m.id} value={m.id}>
-                          {m.name} ({m.size} - {m.quant}) {m.downloaded ? "✓ [Installato]" : "⏳ [Non Installato]"}
+                          {m.name} ({m.size}) {m.downloaded ? "✓" : "⏳"}
                         </option>
                       ))}
                     </select>
-
+                    
                     {(() => {
                       const selectedFormModel = availableModels.find(m => m.id === formModelId);
                       if (selectedFormModel && !selectedFormModel.downloaded) {
-                        if (selectedFormModel.isDownloading) {
-                          return (
-                            <div className="p-2.5 bg-emerald-950/20 border border-emerald-900/60 rounded-lg flex items-center justify-between text-[11px] text-emerald-400 font-mono">
-                              <span className="animate-pulse">Download in corso: {selectedFormModel.downloadProgress}%</span>
-                              <div className="w-20 bg-zinc-800 h-1.5 rounded-full overflow-hidden shrink-0">
-                                <div className="h-full bg-emerald-500" style={{ width: `${selectedFormModel.downloadProgress}%` }} />
-                              </div>
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <div className="p-2.5 bg-zinc-900/80 border border-zinc-800 rounded-lg flex items-center justify-between gap-2 text-[11px]">
-                              <span className="text-zinc-400">⚠️ Richiede installazione locale</span>
-                              {onDownloadModel && (
-                                <button
-                                  type="button"
-                                  onClick={() => onDownloadModel(formModelId)}
-                                  className="px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded text-[10px] transition flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Download className="w-3 h-3" />
-                                  <span>Installa</span>
-                                </button>
-                              )}
-                            </div>
-                          );
-                        }
+                        return (
+                          <div className="text-[11px] text-zinc-400 flex items-center justify-between mt-2">
+                            <span>Richiede installazione locale</span>
+                            {onDownloadModel && !selectedFormModel.isDownloading && (
+                              <button
+                                type="button"
+                                onClick={() => onDownloadModel(formModelId)}
+                                className="text-emerald-400 font-medium hover:underline"
+                              >
+                                Installa Ora
+                              </button>
+                            )}
+                            {selectedFormModel.isDownloading && (
+                              <span className="text-emerald-400 animate-pulse">Download {selectedFormModel.downloadProgress}%</span>
+                            )}
+                          </div>
+                        );
                       }
                       return null;
                     })()}
                   </div>
 
-                  {/* Select Inference Profile */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Profilo di inferenza operativa</label>
-                    <div className="grid grid-cols-5 gap-1 bg-appbg p-1 rounded-lg border border-zinc-850">
-                      {(["eco", "balanced", "performance", "turbo", "quality"] as const).map((prof) => (
-                        <button
-                          key={prof}
-                          type="button"
-                          onClick={() => setFormProfile(prof)}
-                          className={`py-1.5 rounded text-[10px] font-bold uppercase transition ${
-                            formProfile === prof
-                              ? "bg-zinc-800 text-emerald-400"
-                              : "text-zinc-500 hover:text-zinc-300"
-                          }`}
-                        >
-                          {prof}
-                        </button>
+                  {/* Project Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-300">Progetto (Opzionale)</label>
+                    <select
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="w-full bg-appbg border border-zinc-800 text-sm text-zinc-100 rounded-xl p-3 focus:outline-none focus:border-emerald-500 transition-colors"
+                    >
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
-
-                  {/* Title field with generate button */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider">Titolo della conversazione</label>
-                      <button
-                        onClick={handleAutoGenerateTitle}
-                        className="text-[10px] font-semibold text-emerald-400 hover:underline flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3" /> Genera automatico
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Esempio: Analisi Prestazioni Rust, oppure lascia vuoto"
-                      value={formTitle}
-                      onChange={(e) => setFormTitle(e.target.value)}
-                      className="w-full bg-appbg border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {/* Language & project context settings */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Lingua chat</label>
-                      <select
-                        value={formLanguage}
-                        onChange={(e) => setFormLanguage(e.target.value)}
-                        className="w-full bg-appbg border border-zinc-800 text-xs text-zinc-100 rounded-lg p-2.5 focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Italiano">Italiano 🇮🇹</option>
-                        <option value="Inglese">English 🇬🇧</option>
-                        <option value="Spagnolo">Español 🇪🇸</option>
-                        <option value="Francese">Français 🇫🇷</option>
-                        <option value="Tedesco">Deutsch 🇩🇪</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Associa a Progetto</label>
-                      <select
-                        value={selectedProjectId}
-                        onChange={(e) => setSelectedProjectId(e.target.value)}
-                        className="w-full bg-appbg border border-zinc-800 text-xs text-zinc-100 rounded-lg p-2.5 focus:outline-none focus:border-emerald-500"
-                      >
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Role initial presets */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Ruolo iniziale (Prompt Preset)</label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {INITIAL_ROLES.map((role) => {
-                        const Icon = role.icon;
-                        const isSelected = formRole === role.id;
-                        return (
-                          <button
-                            key={role.id}
-                            type="button"
-                            onClick={() => setFormRole(role.id)}
-                            className={`p-2 rounded-lg border transition text-center flex flex-col items-center justify-center space-y-1 ${
-                              isSelected
-                                ? "bg-zinc-800/80 border-emerald-500 text-white"
-                                : "bg-appbg border-zinc-850 text-zinc-400 hover:bg-zinc-900/40"
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 ${role.color}`} />
-                            <span className="text-[9px] font-semibold truncate w-full">{role.name.split(" ")[0]}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                 </div>
 
-                {/* Panel Right: Advanced parameters & attachments dropzone */}
-                <div className="space-y-4">
-                  
-                  {/* Advanced parameters toggle slider */}
-                  <div className="flex justify-between items-center border-b border-zinc-850 pb-2">
-                    <span className="text-xs font-semibold text-zinc-200">Parametri AI Avanzati</span>
-                    <button
-                      onClick={() => setFormAdvancedParams(!formAdvancedParams)}
-                      className="text-xs font-mono text-emerald-400 flex items-center gap-1 hover:underline"
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                      {formAdvancedParams ? "Nascondi Avanzati" : "Mostra Avanzati"}
-                    </button>
-                  </div>
+                {/* Main Input */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-zinc-300">Messaggio Iniziale o Contesto</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Di cosa vuoi parlare? (Opzionale)"
+                    value={formInitialContext}
+                    onChange={(e) => setFormInitialContext(e.target.value)}
+                    className="w-full bg-appbg border border-zinc-800 rounded-xl p-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 resize-none transition-colors"
+                  />
+                </div>
 
-                  {formAdvancedParams ? (
-                    <div className="space-y-3 bg-appbg/50 p-3 border border-zinc-850 rounded-lg text-xs space-y-3.5">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-mono text-zinc-400">
-                          <span>TEMPERATURA: {formTemperature}</span>
-                          <span>Creatività / Precisione</span>
-                        </div>
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
+                  <button
+                    onClick={() => setFormAdvancedParams(!formAdvancedParams)}
+                    className="text-xs text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-colors"
+                  >
+                    <Sliders className="w-4 h-4" />
+                    {formAdvancedParams ? "Nascondi opzioni avanzate" : "Mostra opzioni avanzate"}
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const modelObj = availableModels.find(m => m.id === formModelId);
+                      if (modelObj && !modelObj.downloaded) {
+                        if (!modelObj.isDownloading && onDownloadModel) {
+                          onDownloadModel(formModelId);
+                        }
+                        setPendingCreateAfterDownload(true);
+                      } else {
+                        handleCreateChat();
+                      }
+                    }}
+                    disabled={
+                      !formModelId || 
+                      (availableModels.find(m => m.id === formModelId)?.isDownloading && !pendingCreateAfterDownload)
+                    }
+                    className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold px-8 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg"
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>Inizia Sessione</span>
+                  </button>
+                </div>
+
+                {/* Advanced Options Accordion */}
+                {formAdvancedParams && (
+                  <div className="pt-6 border-t border-zinc-800/50 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 flex justify-between">
+                          <span>Temperatura ({formTemperature})</span>
+                        </label>
                         <input
                           type="range" min="0.1" max="1.5" step="0.05"
                           value={formTemperature}
                           onChange={(e) => setFormTemperature(parseFloat(e.target.value))}
-                          className="w-full h-1 bg-zinc-850 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                          className="w-full accent-emerald-500"
                         />
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-mono text-zinc-500 block">TOP P: {formTopP}</label>
-                          <input
-                            type="range" min="0.1" max="1.0" step="0.05"
-                            value={formTopP}
-                            onChange={(e) => setFormTopP(parseFloat(e.target.value))}
-                            className="w-full h-1 bg-zinc-850 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-mono text-zinc-500 block">TOP K</label>
-                          <input
-                            type="number"
-                            value={formTopK}
-                            onChange={(e) => setFormTopK(parseInt(e.target.value) || 40)}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1 text-[11px] text-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-mono text-zinc-500 block">CONTEXT WINDOW</label>
-                          <input
-                            type="number" step="512"
-                            value={formContextWindow}
-                            onChange={(e) => setFormContextWindow(parseInt(e.target.value) || 2048)}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1 text-[11px] text-white"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-mono text-zinc-500 block">MAX TOKENS</label>
-                          <input
-                            type="number" step="64"
-                            value={formMaxTokens}
-                            onChange={(e) => setFormMaxTokens(parseInt(e.target.value) || 512)}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-1 text-[11px] text-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-mono text-zinc-500 block uppercase">System Prompt Override</label>
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400">System Prompt</label>
                         <textarea
                           rows={2}
                           value={formSystemPrompt}
                           onChange={(e) => setFormSystemPrompt(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white"
+                          className="w-full bg-appbg border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300"
+                          placeholder="You are a helpful assistant..."
                         />
                       </div>
                     </div>
-                  ) : (
-                    <div className="p-3 bg-appbg/30 border border-dashed border-zinc-850 rounded-lg text-xs text-zinc-500">
-                      I parametri standard (Temperatura: 0.7, Context Window: 2048) sono sintonizzati automaticamente dal profilo operativo <strong>{formProfile.toUpperCase()}</strong>.
-                    </div>
-                  )}
-
-                  {/* Context prompt */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Contesto Iniziale (Prompt di avvio)</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Imposta le basi per questa discussione locale..."
-                      value={formInitialContext}
-                      onChange={(e) => setFormInitialContext(e.target.value)}
-                      className="w-full bg-appbg border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {/* Attachment drag & drop zone */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">Allegati sessione (RAG locali)</label>
-                    <div
-                      onDragEnter={handleDrag}
-                      onDragOver={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`border border-dashed rounded-lg p-4 text-center cursor-pointer transition ${
-                        dragActive ? "border-emerald-500 bg-barbg" : "border-zinc-800 bg-appbg/40 hover:bg-zinc-900/30"
-                      }`}
-                    >
-                      <FileUp className="w-6 h-6 text-emerald-400 mx-auto mb-1.5 animate-pulse" />
-                      <span className="text-[11px] text-zinc-400 block font-semibold">Trascina qui codice, PDF, immagini o clicca</span>
-                      <span className="text-[9px] text-zinc-500 block">La sandbox indicizzerà e utilizzerà il testo come Knowledge Base locale</span>
-                      <input
-                        type="file"
-                        multiple
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
+                    
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-zinc-300">File & Documenti (RAG)</label>
+                      <div
+                        onDragEnter={handleDrag}
+                        onDragOver={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border border-dashed border-zinc-700 bg-appbg/50 hover:bg-appbg rounded-xl p-6 text-center cursor-pointer transition-colors h-32 flex flex-col justify-center items-center"
+                      >
+                        <FileUp className="w-6 h-6 text-emerald-400 mb-2" />
+                        <span className="text-xs text-zinc-400">Carica file o trascina qui</span>
+                        <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                      </div>
                     </div>
                   </div>
-
-                  {/* Listed attachments progress */}
-                  {formAttachments.length > 0 && (
-                    <div className="space-y-1.5 max-h-24 overflow-y-auto">
-                      {formAttachments.map((att) => (
-                        <div key={att.id} className="p-2 bg-appbg border border-zinc-850 rounded flex items-center justify-between text-xs gap-3">
-                          <div className="flex items-center gap-2 truncate">
-                            {att.type === "PDF" ? <FileText className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <FileCode className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
-                            <div className="truncate">
-                              <span className="font-semibold text-zinc-200 block truncate">{att.name}</span>
-                              <span className="text-[9px] text-zinc-500 block">{att.size} - v{att.version}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            {att.status === "indexing" ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-[9px] font-mono text-amber-500 animate-pulse">OCR INDEXING...</span>
-                                <RefreshCw className="w-3 h-3 text-amber-500 animate-spin" />
-                              </div>
-                            ) : (
-                              <span className="text-[9px] font-mono bg-emerald-950 text-emerald-400 px-1.5 py-0.2 rounded font-bold">PRONTO</span>
-                            )}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); removeAttachment(att.id); }}
-                              className="text-zinc-500 hover:text-red-400"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                </div>
-
+                )}
               </div>
-
             </div>
-
-            {/* Form submit footer actions */}
-            <div className="border-t border-zinc-850 pt-4 flex flex-col md:flex-row justify-between items-center gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-                <Info className="w-4 h-4 text-emerald-500" />
-                <span>Nessuna richiesta esce dal tuo computer. L'elaborazione è locale al 100%.</span>
-              </div>
-              <button
-                onClick={() => {
-                  const modelObj = availableModels.find(m => m.id === formModelId);
-                  if (modelObj && !modelObj.downloaded) {
-                    if (!modelObj.isDownloading && onDownloadModel) {
-                      onDownloadModel(formModelId);
-                    }
-                    setPendingCreateAfterDownload(true);
-                  } else {
-                    handleCreateChat();
-                  }
-                }}
-                disabled={
-                  !formModelId || 
-                  (availableModels.find(m => m.id === formModelId)?.isDownloading && !pendingCreateAfterDownload)
-                }
-                className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg cursor-pointer animate-none"
-              >
-                <Play className="w-3.5 h-3.5 fill-black" />
-                <span>
-                  {(() => {
-                    const modelObj = availableModels.find(m => m.id === formModelId);
-                    if (!modelObj) return "Seleziona Modello";
-                    if (modelObj.downloaded) return "Inizializza Canale Chat";
-                    if (modelObj.isDownloading || pendingCreateAfterDownload) return `Avvio al termine del download (${modelObj.downloadProgress}%)...`;
-                    return "Scarica ed Inizializza Canale";
-                  })()}
-                </span>
-              </button>
-            </div>
-
           </div>
-
         ) : (
           
           /* VIEW B: ACTIVE CHAT WORKSPACE */

@@ -10,6 +10,8 @@ import { apiRouter } from "./src/server/routes";
 async function startServer() {
   const app = express();
   
+  app.set("trust proxy", 1);
+
   // Security Middlewares
   app.use(helmet({
     contentSecurityPolicy: false, // Disabled for Vite dev server compatibility
@@ -19,7 +21,15 @@ async function startServer() {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 1000, // limit each IP to 1000 requests per windowMs for enterprise internal tooling
-    message: "Too many requests from this IP, please try again later."
+    message: "Too many requests from this IP, please try again later.",
+    keyGenerator: (req) => {
+      const forwarded = req.headers['forwarded'];
+      const xForwardedFor = req.headers['x-forwarded-for'];
+      return (typeof forwarded === 'string' ? forwarded.split(',')[0] : null) || 
+             (typeof xForwardedFor === 'string' ? xForwardedFor.split(',')[0] : null) || 
+             req.ip || 
+             'unknown';
+    }
   });
   app.use("/api", limiter);
   

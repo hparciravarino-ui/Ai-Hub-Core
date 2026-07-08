@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { ModelService } from "../../core/services/ModelService";
 import { Model } from "../../types";
+import { SectionHeader } from "../ui/SectionHeader";
+import { Card, CardContent } from "../ui/Card";
 
 interface Props {
   models: Model[];
@@ -48,34 +50,38 @@ export default function EnterpriseModelDashboard({ models }: Props) {
 
   return (
     <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto custom-scrollbar">
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center">
-            <Box className="w-5 h-5 mr-2 text-indigo-500" />
-            Enterprise Model Manager
-          </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">Gestione Centralizzata Modelli & Installazione Smart</p>
-        </div>
-      </div>
+      <SectionHeader 
+        title="Enterprise Model Manager" 
+        description="Gestione Centralizzata Modelli & Installazione Smart"
+        icon={<Box className="w-5 h-5 text-indigo-500" />}
+      />
 
       {rankings && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-            <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Coding</div>
-            <div className="text-sm font-bold text-emerald-400 truncate">{rankings.bestCoding}</div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-            <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Reasoning</div>
-            <div className="text-sm font-bold text-blue-400 truncate">{rankings.bestReasoning}</div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-            <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Ottimale per Hardware</div>
-            <div className="text-sm font-bold text-purple-400 truncate">{rankings.bestForHardware}</div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-            <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Chat</div>
-            <div className="text-sm font-bold text-amber-400 truncate">{rankings.bestChat}</div>
-          </div>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Coding</div>
+              <div className="text-sm font-bold text-emerald-400 truncate">{rankings.bestCoding}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Reasoning</div>
+              <div className="text-sm font-bold text-blue-400 truncate">{rankings.bestReasoning}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Ottimale per Hardware</div>
+              <div className="text-sm font-bold text-purple-400 truncate">{rankings.bestForHardware}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] text-zinc-500 font-mono uppercase mb-1">Miglior Chat</div>
+              <div className="text-sm font-bold text-amber-400 truncate">{rankings.bestChat}</div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

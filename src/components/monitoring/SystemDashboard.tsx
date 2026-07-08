@@ -4,6 +4,8 @@ import {
   Terminal, AlertTriangle, ShieldCheck, Play, HelpCircle, Laptop, 
   CheckCircle, Plus, Eye, Key, FolderArchive, RotateCcw, Package, Download
 } from 'lucide-react';
+import { SectionHeader } from '../ui/SectionHeader';
+import { Card, CardContent } from '../ui/Card';
 
 export default function SystemDashboard() {
   const [subTab, setSubTab] = useState<'telemetry' | 'desktop' | 'qa' | 'packaging'>('telemetry');
@@ -295,37 +297,33 @@ export default function SystemDashboard() {
     <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto custom-scrollbar text-zinc-100" id="system-runtime-dashboard">
       
       {/* Upper Title Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-zinc-800 pb-4 gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center">
-            <MonitorSmartphone className="w-5 h-5 mr-2 text-amber-500" />
-            System Observability & DevOps Core
-          </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">MODULES 3-6: Desktop Bridges, Telemetry, QA Pipelines & Compilers</p>
-        </div>
-
-        {/* Global Tab Selection */}
-        <div className="flex space-x-1 bg-zinc-950 p-1 rounded-lg border border-zinc-850">
-          {[
-            { id: 'telemetry', name: 'Observability' },
-            { id: 'desktop', name: 'Desktop OS' },
-            { id: 'qa', name: 'Quality Assurance' },
-            { id: 'packaging', name: 'Distribution' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setSubTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition-all ${
-                subTab === tab.id 
-                  ? 'bg-amber-600 text-white shadow-md' 
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {tab.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SectionHeader 
+        title="System Observability & DevOps Core" 
+        description="MODULES 3-6: Desktop Bridges, Telemetry, QA Pipelines & Compilers"
+        icon={<MonitorSmartphone className="w-5 h-5 text-amber-500" />}
+        actions={
+          <div className="flex space-x-1 bg-zinc-950 p-1 rounded-lg border border-zinc-850">
+            {[
+              { id: 'telemetry', name: 'Observability' },
+              { id: 'desktop', name: 'Desktop OS' },
+              { id: 'qa', name: 'Quality Assurance' },
+              { id: 'packaging', name: 'Distribution' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSubTab(tab.id as any)}
+                className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition-all ${
+                  subTab === tab.id 
+                    ? 'bg-amber-600 text-white shadow-md' 
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/* SUB-TAB 1: TELEMETRY & OBSERVABILITY (Modulo 4) */}
       {subTab === 'telemetry' && (
@@ -333,59 +331,67 @@ export default function SystemDashboard() {
           {/* Main live metric counters */}
           {liveMetric ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
-                <div>
-                  <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center justify-between">
-                    <span className="flex items-center"><Cpu className="w-3 h-3 mr-1 text-amber-500" /> CPU CORES</span>
-                    <span className="text-zinc-400 font-bold">{liveMetric.temperatureC}°C</span>
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center justify-between">
+                      <span className="flex items-center"><Cpu className="w-3 h-3 mr-1 text-amber-500" /> CPU CORES</span>
+                      <span className="text-zinc-400 font-bold">{liveMetric.temperatureC}°C</span>
+                    </div>
+                    <div className="text-xl font-bold text-zinc-100 mb-1">{liveMetric.cpuUsage.toFixed(1)}%</div>
                   </div>
-                  <div className="text-xl font-bold text-zinc-100 mb-1">{liveMetric.cpuUsage.toFixed(1)}%</div>
-                </div>
-                <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
-                  <div className="bg-amber-500 h-full transition-all duration-300" style={{ width: `${liveMetric.cpuUsage}%` }} />
-                </div>
-              </div>
+                  <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
+                    <div className="bg-amber-500 h-full transition-all duration-300" style={{ width: `${liveMetric.cpuUsage}%` }} />
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
-                <div>
-                  <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center justify-between">
-                    <span className="flex items-center"><Zap className="w-3 h-3 mr-1 text-purple-400" /> GPU CORE</span>
-                    <span className="text-zinc-400 font-bold">{liveMetric.powerDrawWatts}W</span>
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center justify-between">
+                      <span className="flex items-center"><Zap className="w-3 h-3 mr-1 text-purple-400" /> GPU CORE</span>
+                      <span className="text-zinc-400 font-bold">{liveMetric.powerDrawWatts}W</span>
+                    </div>
+                    <div className="text-xl font-bold text-zinc-100 mb-1">{liveMetric.gpuUsage.toFixed(1)}%</div>
                   </div>
-                  <div className="text-xl font-bold text-zinc-100 mb-1">{liveMetric.gpuUsage.toFixed(1)}%</div>
-                </div>
-                <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
-                  <div className="bg-purple-500 h-full transition-all duration-300" style={{ width: `${liveMetric.gpuUsage}%` }} />
-                </div>
-              </div>
+                  <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
+                    <div className="bg-purple-500 h-full transition-all duration-300" style={{ width: `${liveMetric.gpuUsage}%` }} />
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
-                <div>
-                  <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center">
-                    <HardDrive className="w-3 h-3 mr-1 text-blue-400" /> SYSTEM RAM
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center">
+                      <HardDrive className="w-3 h-3 mr-1 text-blue-400" /> SYSTEM RAM
+                    </div>
+                    <div className="text-xl font-bold text-zinc-100 mb-1">
+                      {liveMetric.ramUsage.toFixed(1)} <span className="text-xs text-zinc-500">GB</span>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-zinc-100 mb-1">
-                    {liveMetric.ramUsage.toFixed(1)} <span className="text-xs text-zinc-500">GB</span>
+                  <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
+                    <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${(liveMetric.ramUsage / 32) * 100}%` }} />
                   </div>
-                </div>
-                <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
-                  <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${(liveMetric.ramUsage / 32) * 100}%` }} />
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
-                <div>
-                  <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center">
-                    <Server className="w-3 h-3 mr-1 text-emerald-400" /> GPU VRAM
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="text-[9px] text-zinc-500 font-mono uppercase mb-2 flex items-center">
+                      <Server className="w-3 h-3 mr-1 text-emerald-400" /> GPU VRAM
+                    </div>
+                    <div className="text-xl font-bold text-emerald-400">
+                      {liveMetric.vramUsage.toFixed(1)} <span className="text-xs text-zinc-500">GB</span>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-emerald-400">
-                    {liveMetric.vramUsage.toFixed(1)} <span className="text-xs text-zinc-500">GB</span>
+                  <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
+                    <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${(liveMetric.vramUsage / 24) * 100}%` }} />
                   </div>
-                </div>
-                <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-2">
-                  <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${(liveMetric.vramUsage / 24) * 100}%` }} />
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           ) : (
             <div className="text-center py-8 text-zinc-600 font-mono text-xs">Inizializzazione flussi telemetrici...</div>
