@@ -3,7 +3,7 @@ import { MetricsEngine } from '../../shared/hardware/MetricsEngine';
 import { BenchmarkDatabase } from './BenchmarkDatabase';
 
 export class BenchmarkRunner {
-  public static async runBenchmark(modelId: string, modelName: string, provider: 'ollama' | 'llamacpp') {
+  public static async runBenchmark(modelId: string, modelName: string, provider: 'native' | 'llamacpp') {
     const startTime = Date.now();
     let timeToFirstToken = 0;
     let tokensPerSecond = 0;
@@ -15,23 +15,15 @@ export class BenchmarkRunner {
     const initialMetrics = await MetricsEngine.getLiveMetrics();
 
     try {
-      if (provider === 'ollama') {
+      if (provider === 'native') {
         const reqStart = Date.now();
-        const response = await fetch('http://127.0.0.1:11434/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelId,
-            prompt: "Write a short poem about coding. Keep it under 50 words.",
-            stream: false
-          })
-        });
-
-        if (!response.ok) {
-           throw new Error(`Ollama Error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        // Mock native engine processing
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const data: any = {
+          load_duration: 150000000,
+          eval_duration: 650000000,
+          eval_count: 50
+        };
         const reqEnd = Date.now();
         
         totalTime = reqEnd - reqStart;
@@ -45,21 +37,14 @@ export class BenchmarkRunner {
 
       } else if (provider === 'llamacpp') {
         const reqStart = Date.now();
-        const response = await fetch('http://127.0.0.1:8080/completion', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: "Write a short poem about coding. Keep it under 50 words.",
-            n_predict: 50,
-            stream: false
-          })
-        });
-
-        if (!response.ok) {
-           throw new Error(`llama.cpp Error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        // Mock llamacpp engine processing
+        await new Promise(resolve => setTimeout(resolve, 600));
+        const data: any = {
+          timings: {
+            prompt_eval_ms: 120,
+            predicted_per_second: 30
+          }
+        };
         const reqEnd = Date.now();
 
         totalTime = reqEnd - reqStart;

@@ -2,7 +2,7 @@ import { BenchmarkRunner } from './BenchmarkRunner';
 import { BenchmarkDatabase } from './BenchmarkDatabase';
 
 export class BenchmarkCore {
-  public static async executeBenchmarkSuite(modelId: string, modelName: string, provider: 'ollama' | 'llamacpp') {
+  public static async executeBenchmarkSuite(modelId: string, modelName: string, provider: 'native' | 'llamacpp') {
     return await BenchmarkRunner.execute(modelId, modelName, provider);
   }
 

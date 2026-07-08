@@ -8,7 +8,7 @@ export class RecommendationEngine {
       recs.push('Configurazione non ottimale: Temperature troppo elevate, migliorare dissipazione.');
     }
     if (result.status === 'failed') {
-      recs.push('Verifica che il runtime (Ollama o llama.cpp) sia in esecuzione.');
+      recs.push('Verifica che il runtime (Native o llama.cpp) sia in esecuzione.');
       recs.push('Controlla che il modello sia stato scaricato correttamente.');
       return recs;
     }
@@ -18,8 +18,8 @@ export class RecommendationEngine {
       recs.push('Chiudi le altre applicazioni durante l\'uso del modello.');
     }
 
-    if (result.metrics.cpuPeak > 90 && result.provider === 'ollama') {
-      recs.push('Se hai una GPU, assicurati che Ollama stia rilevando i driver corretti (CUDA/Metal).');
+    if (result.metrics.cpuPeak > 90 && result.provider === 'native') {
+      recs.push('Se hai una GPU, assicurati che Native stia rilevando i driver corretti (CUDA/Metal).');
     }
 
     if (result.metrics.tokensPerSecond < 10) {

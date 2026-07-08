@@ -35,7 +35,7 @@ export class Scanner {
       vscode: await this.checkCommand('code -v'),
       firebase: await this.checkCommand('firebase -V'),
       gemini: await this.checkCommand('gemini -v'),
-      ollama: await this.checkCommand('ollama -v'),
+      native: await this.checkCommand('native -v'),
       lmStudio: await this.checkCommand('lms status'),
       vllm: await this.checkCommand('python -m vllm.entrypoints.openai.api_server --help') ? 'Installed' : null,
       llamaCpp: await this.checkCommand('llama-cli --help') ? 'Installed' : null,

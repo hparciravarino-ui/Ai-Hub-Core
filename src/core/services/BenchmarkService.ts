@@ -1,5 +1,5 @@
 export class BenchmarkService {
-  public static async runBenchmark(modelId: string, modelName: string, provider: 'ollama' | 'llamacpp') {
+  public static async runBenchmark(modelId: string, modelName: string, provider: 'native' | 'llamacpp') {
     const res = await fetch("/api/benchmark/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

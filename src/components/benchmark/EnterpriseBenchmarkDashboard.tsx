@@ -36,8 +36,8 @@ export default function EnterpriseBenchmarkDashboard({ models }: Props) {
   const runBenchmark = async (modelId: string, modelName: string) => {
     setRunning(modelId);
     try {
-      // Default to Ollama for local models. Could add a selector in a real app.
-      await BenchmarkCore.executeBenchmarkSuite(modelId, modelName, "ollama");
+      // Default to Native for local models. Could add a selector in a real app.
+      await BenchmarkCore.executeBenchmarkSuite(modelId, modelName, "native");
       await loadResults();
     } catch (e) {
       console.error(e);

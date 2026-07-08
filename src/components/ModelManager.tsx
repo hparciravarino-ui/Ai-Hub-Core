@@ -282,7 +282,7 @@ export default function ModelManager({
                 <span>Cerca Modelli Open Source in Tempo Reale</span>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Interroga il Web tramite il nostro assistente con Google Search Grounding per trovare gli ultimi pesi rilasciati su Hugging Face o Ollama (es. <em>"Gemma 2 2b IT"</em>, <em>"Llama 3.3 8b"</em>, <em>"DeepSeek R1"</em>, <em>"Phi-4"</em>).
+                Interroga il Web tramite il nostro assistente con Google Search Grounding per trovare gli ultimi pesi rilasciati su Hugging Face o Native (es. <em>"Gemma 2 2b IT"</em>, <em>"Llama 3.3 8b"</em>, <em>"DeepSeek R1"</em>, <em>"Phi-4"</em>).
               </p>
               
               <div className="flex gap-2">
@@ -333,7 +333,7 @@ export default function ModelManager({
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm font-semibold text-zinc-200">Interrogazione in rete con Google Search Grounding...</div>
-                  <div className="text-xs text-zinc-500 font-mono">Scansione di huggingface.co, ollama.com e paper accademici per trovare i pesi richiesti.</div>
+                  <div className="text-xs text-zinc-500 font-mono">Scansione di huggingface.co, native.com e paper accademici per trovare i pesi richiesti.</div>
                 </div>
               </div>
             )}
@@ -456,7 +456,7 @@ export default function ModelManager({
               <div className="p-12 text-center bg-panelbg border border-zinc-800 rounded-xl text-zinc-500">
                 <Search className="w-8 h-8 mx-auto text-zinc-700 mb-3" />
                 <p className="text-sm font-semibold text-zinc-400">Nessun modello cercato in rete.</p>
-                <p className="text-xs text-zinc-500 mt-1">Usa la barra di ricerca in alto per interrogare Hugging Face e Ollama in tempo reale.</p>
+                <p className="text-xs text-zinc-500 mt-1">Usa la barra di ricerca in alto per interrogare Hugging Face e Native in tempo reale.</p>
               </div>
             )}
           </div>

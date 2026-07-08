@@ -17,11 +17,11 @@ export class SmartInstallationEngine {
     await DownloadUpdateManager.downloadModel(modelData.id, modelData.sourceUrl || '');
 
     // 4. Configure runtime (mock implementation)
-    // Here we would apply the 'config' to Ollama/LMStudio/llama.cpp settings
+    // Here we would apply the 'config' to Native/LMStudio/llama.cpp settings
 
     // 5. Run Initial Benchmark
-    // Assuming the provider is 'ollama' or 'llamacpp', defaulting to ollama here
-    const benchmarkResult = await BenchmarkCore.executeBenchmarkSuite(modelData.id, modelData.name, 'ollama');
+    // Assuming the provider is 'native' or 'llamacpp', defaulting to native here
+    const benchmarkResult = await BenchmarkCore.executeBenchmarkSuite(modelData.id, modelData.name, 'native');
 
     // 6. Return successful installation package
     return {

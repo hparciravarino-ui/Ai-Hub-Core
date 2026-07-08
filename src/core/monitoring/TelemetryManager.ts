@@ -175,7 +175,7 @@ export class TelemetryManager {
       sandbox_namespaces: 'PASS (Isolamento namespace Linux/Windows container verificato)',
       cryptographic_modules: 'PASS (SHA-256 / AES-256 OpenSSL engines active)',
       network_gateway: 'OPERATIONAL (Firewall outbound blockages verified)',
-      model_runtime: 'OPERATIONAL (Ollama runtime responding on local port)'
+      model_runtime: 'OPERATIONAL (Native runtime responding on local port)'
     };
     AuditLogger.log({ actor: 'diagnostics_runner', action: 'DIAGNOSTICS_COMPLETED', resource: 'hardware_core', status: 'SUCCESS' });
     return { healthy: true, results, timestamp: new Date().toISOString() };
