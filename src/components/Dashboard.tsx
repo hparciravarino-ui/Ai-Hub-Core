@@ -25,6 +25,7 @@ import {
 import { HardwareProfile, PerformanceProfile, PerformanceProfileId } from "../types";
 import { PERFORMANCE_PROFILES } from "../data";
 import { getAuthHeaders } from "../utils";
+import { HardwareService } from "../core/services/HardwareService";
 
 interface DashboardProps {
   currentHardware: HardwareProfile;
@@ -110,114 +111,62 @@ export default function Dashboard({
     setHistory(initialHistory);
   }, [currentHardware]);
 
-  // Dynamic simulation of hardware metrics based on the active Performance Profile
+  // Poll real hardware metrics from Core Services
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics((prev) => {
-        let baseCpu = 5;
-        let baseGpu = 2;
-        let baseRam = 35;
-        let baseVram = 10;
-        let baseTemp = 40;
-        let tokSpeed = 0;
-        let lat = 0;
+    let mounted = true;
+    const fetchMetrics = async () => {
+      try {
+        const live = await HardwareService.getLiveMetrics();
+        if (!mounted) return;
+        
+        const newCpu = Math.min(100, Math.max(0, Math.round(live.cpu)));
+        const newTemp = Math.round(live.temp);
+        const newRam = Math.min(100, Math.max(0, Math.round(live.ram)));
+        const newVram = Math.round(live.vram);
+        
+        // VRAM & GPU load usually missing from standard basic load APIs, 
+        // fallback to keeping them low or what we have.
+        const newGpu = 0; 
 
-        // Base values vary by profile
-        switch (selectedProfileId) {
-          case "eco":
-            baseCpu = 25; // Utilizing CPU mostly
-            baseGpu = 2;
-            baseRam = Math.min(prev.ram, currentHardware.ram * 6); // compressed, lower ram
-            baseVram = 5;
-            baseTemp = 48;
-            tokSpeed = 12;
-            lat = 220;
-            break;
-          case "balanced":
-            baseCpu = 35;
-            baseGpu = 15;
-            baseRam = 45;
-            baseVram = 25;
-            baseTemp = 55;
-            tokSpeed = 22;
-            lat = 110;
-            break;
-          case "performance":
-            baseCpu = 55;
-            baseGpu = 50;
-            baseRam = 55;
-            baseVram = 60;
-            baseTemp = 64;
-            tokSpeed = 38;
-            lat = 45;
-            break;
-          case "turbo":
-            baseCpu = 85;
-            baseGpu = 92;
-            baseRam = 75;
-            baseVram = 88;
-            baseTemp = 76;
-            tokSpeed = 58;
-            lat = 18;
-            break;
-          case "quality":
-            baseCpu = 45;
-            baseGpu = 65;
-            baseRam = 85; // high memory precision
-            baseVram = 70;
-            baseTemp = 68;
-            tokSpeed = 18;
-            lat = 85;
-            break;
-        }
+        setMetrics((prev) => {
+          // Token speed / latency could be sourced from a ModelEngine service later
+          const finalTok = 0; 
+          const finalLat = 0;
 
-        // Adjust for hardware limits (e.g. CPU-only netbook cannot load GPU)
-        if (currentHardware.vram === 0.5) {
-          baseGpu = Math.min(baseGpu, 10);
-          baseVram = Math.min(baseVram, 12);
-          tokSpeed = tokSpeed * 0.4; // Slower on CPU only
-          lat = lat * 2.2;
-        } else if (currentHardware.id === "apple_silicon_m1") {
-          // Apple silicon is super efficient
-          baseTemp = baseTemp - 12;
-          tokSpeed = tokSpeed * 1.1;
-        }
-
-        const newCpu = Math.min(100, Math.max(2, Math.round(baseCpu)));
-        const newGpu = Math.min(100, Math.max(0, Math.round(baseGpu)));
-        const newRam = Math.min(100, Math.max(10, Math.round(baseRam)));
-        const newVram = Math.min(100, Math.max(0, Math.round(baseVram)));
-        const newTemp = Math.round(baseTemp);
-        const finalTok = parseFloat(tokSpeed.toFixed(1));
-        const finalLat = Math.round(lat);
-
-        // Update history graph array
-        setHistory((prevHist) => {
-          const nextHist = [...prevHist.slice(1)];
-          nextHist.push({
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-            cpu: newCpu,
-            ram: newRam,
-            gpu: newGpu,
-            tokens: finalTok,
+          setHistory((prevHist) => {
+            const nextHist = [...prevHist.slice(1)];
+            nextHist.push({
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              cpu: newCpu,
+              ram: newRam,
+              gpu: newGpu,
+              tokens: finalTok,
+            });
+            return nextHist;
           });
-          return nextHist;
+
+          return {
+            cpu: newCpu,
+            gpu: newGpu,
+            ram: newRam,
+            vram: newVram,
+            temp: newTemp,
+            tokensPerSec: finalTok,
+            latency: finalLat,
+          };
         });
+      } catch (err) {
+        console.warn("Failed to fetch live metrics", err);
+      }
+    };
 
-        return {
-          cpu: newCpu,
-          gpu: newGpu,
-          ram: newRam,
-          vram: newVram,
-          temp: newTemp,
-          tokensPerSec: finalTok,
-          latency: finalLat,
-        };
-      });
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [selectedProfileId, currentHardware]);
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 2000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Diagnose memory bottleneck simulation
   const isOutOfMemoryRisk =

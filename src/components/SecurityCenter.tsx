@@ -32,10 +32,24 @@ export default function SecurityCenter({
 
   const [geminiKey, setGeminiKey] = useState("");
   const [openRouterKey, setOpenRouterKey] = useState("");
+  const [huggingfaceKey, setHuggingfaceKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [groqKey, setGroqKey] = useState("");
+  
   const [geminiValidStatus, setGeminiValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
   const [openRouterValidStatus, setOpenRouterValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [huggingfaceValidStatus, setHuggingfaceValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [openaiValidStatus, setOpenaiValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [anthropicValidStatus, setAnthropicValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+  const [groqValidStatus, setGroqValidStatus] = useState<"none" | "validating" | "valid" | "invalid">("none");
+
   const [geminiError, setGeminiError] = useState("");
   const [openRouterError, setOpenRouterError] = useState("");
+  const [huggingfaceError, setHuggingfaceError] = useState("");
+  const [openaiError, setOpenaiError] = useState("");
+  const [anthropicError, setAnthropicError] = useState("");
+  const [groqError, setGroqError] = useState("");
 
   const safeBtoa = (str: string) => {
     try {
@@ -71,11 +85,51 @@ export default function SecurityCenter({
         validateKey("openrouter", decoded);
       } catch (e) {}
     }
+
+    const storedHKey = localStorage.getItem("huggingface_key_enc");
+    if (storedHKey) {
+      try {
+        const decoded = safeAtob(storedHKey);
+        setHuggingfaceKey(decoded);
+        validateKey("huggingface", decoded);
+      } catch (e) {}
+    }
+
+    const storedOaiKey = localStorage.getItem("openai_key_enc");
+    if (storedOaiKey) {
+      try {
+        const decoded = safeAtob(storedOaiKey);
+        setOpenaiKey(decoded);
+        validateKey("openai", decoded);
+      } catch (e) {}
+    }
+
+    const storedAnthKey = localStorage.getItem("anthropic_key_enc");
+    if (storedAnthKey) {
+      try {
+        const decoded = safeAtob(storedAnthKey);
+        setAnthropicKey(decoded);
+        validateKey("anthropic", decoded);
+      } catch (e) {}
+    }
+
+    const storedGroqKey = localStorage.getItem("groq_key_enc");
+    if (storedGroqKey) {
+      try {
+        const decoded = safeAtob(storedGroqKey);
+        setGroqKey(decoded);
+        validateKey("groq", decoded);
+      } catch (e) {}
+    }
   }, []);
 
-  const validateKey = async (provider: "gemini" | "openrouter", key: string) => {
+  const validateKey = async (provider: "gemini" | "openrouter" | "huggingface" | "openai" | "anthropic" | "groq", key: string) => {
     if (provider === "gemini") { setGeminiValidStatus("validating"); setGeminiError(""); }
-    else { setOpenRouterValidStatus("validating"); setOpenRouterError(""); }
+    else if (provider === "openrouter") { setOpenRouterValidStatus("validating"); setOpenRouterError(""); }
+    else if (provider === "huggingface") { setHuggingfaceValidStatus("validating"); setHuggingfaceError(""); }
+    else if (provider === "openai") { setOpenaiValidStatus("validating"); setOpenaiError(""); }
+    else if (provider === "anthropic") { setAnthropicValidStatus("validating"); setAnthropicError(""); }
+    else if (provider === "groq") { setGroqValidStatus("validating"); setGroqError(""); }
 
     try {
       if (provider === "gemini") {
@@ -91,7 +145,7 @@ export default function SecurityCenter({
             setGeminiValidStatus("invalid");
             setGeminiError(data.error?.message || "Errore sconosciuto Gemini");
          }
-      } else {
+      } else if (provider === "openrouter") {
          const response = await fetch("https://openrouter.ai/api/v1/auth/key", {
             method: "GET",
             headers: {
@@ -108,28 +162,106 @@ export default function SecurityCenter({
             setOpenRouterValidStatus("invalid");
             setOpenRouterError(`Errore API (${response.status}): ${errorText}`);
          }
+      } else if (provider === "huggingface") {
+         const response = await fetch("https://huggingface.co/api/whoami-v2", {
+            method: "GET",
+            headers: {
+               "Authorization": `Bearer ${key}`
+            }
+         });
+         if (response.ok) {
+            setHuggingfaceValidStatus("valid");
+         } else {
+            setHuggingfaceValidStatus("invalid");
+            setHuggingfaceError("Errore API: Token non valido");
+         }
+      } else if (provider === "openai") {
+         const response = await fetch("https://api.openai.com/v1/models", {
+            method: "GET",
+            headers: {
+               "Authorization": `Bearer ${key}`
+            }
+         });
+         if (response.ok) {
+            setOpenaiValidStatus("valid");
+         } else {
+            setOpenaiValidStatus("invalid");
+            setOpenaiError("Errore API: Token OpenAI non valido");
+         }
+      } else if (provider === "anthropic") {
+         const response = await fetch("https://api.anthropic.com/v1/models", {
+            method: "GET",
+            headers: {
+               "x-api-key": key,
+               "anthropic-version": "2023-06-01",
+               "anthropic-dangerous-direct-browser-access": "true"
+            }
+         });
+         if (response.ok) {
+            setAnthropicValidStatus("valid");
+         } else {
+            setAnthropicValidStatus("invalid");
+            setAnthropicError("Errore API: Token Anthropic non valido");
+         }
+      } else if (provider === "groq") {
+         const response = await fetch("https://api.groq.com/openai/v1/models", {
+            method: "GET",
+            headers: {
+               "Authorization": `Bearer ${key}`
+            }
+         });
+         if (response.ok) {
+            setGroqValidStatus("valid");
+         } else {
+            setGroqValidStatus("invalid");
+            setGroqError("Errore API: Token Groq non valido");
+         }
       }
     } catch (e: any) {
       if (provider === "gemini") { setGeminiValidStatus("invalid"); setGeminiError(e.message); }
-      else { setOpenRouterValidStatus("invalid"); setOpenRouterError(e.message); }
+      else if (provider === "openrouter") { setOpenRouterValidStatus("invalid"); setOpenRouterError(e.message); }
+      else if (provider === "huggingface") { setHuggingfaceValidStatus("invalid"); setHuggingfaceError(e.message); }
+      else if (provider === "openai") { setOpenaiValidStatus("invalid"); setOpenaiError(e.message); }
+      else if (provider === "anthropic") { setAnthropicValidStatus("invalid"); setAnthropicError(e.message); }
+      else if (provider === "groq") { setGroqValidStatus("invalid"); setGroqError(e.message); }
     }
   };
 
-  const resetKey = (provider: "gemini" | "openrouter") => {
+  const resetKey = (provider: "gemini" | "openrouter" | "huggingface" | "openai" | "anthropic" | "groq") => {
     if (provider === "gemini") {
       setGeminiKey("");
       localStorage.removeItem("gemini_key_enc");
       setGeminiValidStatus("none");
       setGeminiError("");
-    } else {
+    } else if (provider === "openrouter") {
       setOpenRouterKey("");
       localStorage.removeItem("openrouter_key_enc");
       setOpenRouterValidStatus("none");
       setOpenRouterError("");
+    } else if (provider === "huggingface") {
+      setHuggingfaceKey("");
+      localStorage.removeItem("huggingface_key_enc");
+      setHuggingfaceValidStatus("none");
+      setHuggingfaceError("");
+    } else if (provider === "openai") {
+      setOpenaiKey("");
+      localStorage.removeItem("openai_key_enc");
+      setOpenaiValidStatus("none");
+      setOpenaiError("");
+    } else if (provider === "anthropic") {
+      setAnthropicKey("");
+      localStorage.removeItem("anthropic_key_enc");
+      setAnthropicValidStatus("none");
+      setAnthropicError("");
+    } else if (provider === "groq") {
+      setGroqKey("");
+      localStorage.removeItem("groq_key_enc");
+      setGroqValidStatus("none");
+      setGroqError("");
     }
   };
 
-  const saveAndValidateKey = (provider: "gemini" | "openrouter", key: string) => {
+  const saveAndValidateKey = (provider: "gemini" | "openrouter" | "huggingface" | "openai" | "anthropic" | "groq", key: string) => {
      if (provider === "gemini") {
         setGeminiKey(key);
         if (!key) {
@@ -139,7 +271,7 @@ export default function SecurityCenter({
         }
         try { localStorage.setItem("gemini_key_enc", safeBtoa(key.trim())); } catch (e) {}
         validateKey("gemini", key.trim());
-     } else {
+     } else if (provider === "openrouter") {
         setOpenRouterKey(key);
         if (!key) {
            localStorage.removeItem("openrouter_key_enc");
@@ -148,6 +280,42 @@ export default function SecurityCenter({
         }
         try { localStorage.setItem("openrouter_key_enc", safeBtoa(key.trim())); } catch (e) {}
         validateKey("openrouter", key.trim());
+     } else if (provider === "huggingface") {
+        setHuggingfaceKey(key);
+        if (!key) {
+           localStorage.removeItem("huggingface_key_enc");
+           setHuggingfaceValidStatus("none");
+           return;
+        }
+        try { localStorage.setItem("huggingface_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("huggingface", key.trim());
+     } else if (provider === "openai") {
+        setOpenaiKey(key);
+        if (!key) {
+           localStorage.removeItem("openai_key_enc");
+           setOpenaiValidStatus("none");
+           return;
+        }
+        try { localStorage.setItem("openai_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("openai", key.trim());
+     } else if (provider === "anthropic") {
+        setAnthropicKey(key);
+        if (!key) {
+           localStorage.removeItem("anthropic_key_enc");
+           setAnthropicValidStatus("none");
+           return;
+        }
+        try { localStorage.setItem("anthropic_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("anthropic", key.trim());
+     } else if (provider === "groq") {
+        setGroqKey(key);
+        if (!key) {
+           localStorage.removeItem("groq_key_enc");
+           setGroqValidStatus("none");
+           return;
+        }
+        try { localStorage.setItem("groq_key_enc", safeBtoa(key.trim())); } catch (e) {}
+        validateKey("groq", key.trim());
      }
   };
 
@@ -448,6 +616,150 @@ export default function SecurityCenter({
             {openRouterValidStatus === "invalid" && openRouterError && (
               <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
                 {openRouterError}
+              </div>
+            )}
+          </div>
+
+          {/* Hugging Face Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">Hugging Face API Key</label>
+              {huggingfaceValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {huggingfaceValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {huggingfaceValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={huggingfaceError}><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={huggingfaceKey}
+                onChange={(e) => setHuggingfaceKey(e.target.value)}
+                placeholder="hf_..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("huggingface", huggingfaceKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
+              >
+                Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("huggingface")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
+              </button>
+            </div>
+            {huggingfaceValidStatus === "invalid" && huggingfaceError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {huggingfaceError}
+              </div>
+            )}
+          </div>
+
+          {/* OpenAI Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">OpenAI API Key</label>
+              {openaiValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {openaiValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {openaiValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={openaiError}><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                placeholder="sk-..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("openai", openaiKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
+              >
+                Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("openai")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
+              </button>
+            </div>
+            {openaiValidStatus === "invalid" && openaiError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {openaiError}
+              </div>
+            )}
+          </div>
+
+          {/* Anthropic Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">Anthropic API Key</label>
+              {anthropicValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {anthropicValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {anthropicValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={anthropicError}><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("anthropic", anthropicKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
+              >
+                Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("anthropic")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
+              </button>
+            </div>
+            {anthropicValidStatus === "invalid" && anthropicError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {anthropicError}
+              </div>
+            )}
+          </div>
+
+          {/* Groq Key */}
+          <div className="space-y-2 p-4 bg-[#0a0a0a] border border-zinc-800 rounded-lg relative overflow-hidden">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-zinc-300">Groq API Key</label>
+              {groqValidStatus === "validating" && <RefreshCw className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              {groqValidStatus === "valid" && <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/50"><Check className="w-3 h-3"/> VALIDATO</span>}
+              {groqValidStatus === "invalid" && <span className="flex items-center gap-1 text-[10px] text-red-400 font-mono font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-900/50" title={groqError}><X className="w-3 h-3"/> ERRORE API</span>}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
+                placeholder="gsk_..."
+                className="flex-1 bg-barbg border border-zinc-700 rounded-md py-1.5 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                onClick={() => saveAndValidateKey("groq", groqKey)}
+                className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0"
+              >
+                Salva & Valida
+              </button>
+              <button
+                onClick={() => resetKey("groq")}
+                className="bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 border border-zinc-700 hover:border-red-500/50"
+              >
+                Reset
+              </button>
+            </div>
+            {groqValidStatus === "invalid" && groqError && (
+              <div className="text-[10px] text-red-400 mt-1 break-all bg-red-950/30 p-2 rounded border border-red-900/30">
+                {groqError}
               </div>
             )}
           </div>

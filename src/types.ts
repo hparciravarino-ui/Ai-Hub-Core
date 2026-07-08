@@ -7,13 +7,16 @@ export interface HardwareProfile {
   vram: number; // GB
   cores: number;
   threads: number;
-  storageType: "SSD" | "HDD";
+  storageType: "SSD" | "HDD" | string;
   freeSpace: number; // GB
   temperature: number; // C
   loadCpu: number; // %
   loadGpu: number; // %
   loadRam: number; // %
   loadVram: number; // %
+  runtimes?: Record<string, string | null>;
+  aiHardware?: string[];
+  raw?: any;
 }
 
 export interface FileEntry {
@@ -41,6 +44,9 @@ export interface PerformanceProfile {
 }
 
 export interface Model {
+  type?: string;
+  tags?: string[];
+  sizeBytes?: number;
   id: string;
   name: string;
   category: "Chat" | "Coding" | "Writing" | "Vision" | "OCR" | "Audio" | "Embedding" | "Reasoning" | "ImageGen";

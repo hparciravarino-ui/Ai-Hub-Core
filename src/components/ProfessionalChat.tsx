@@ -130,7 +130,8 @@ export default function ProfessionalChat({
   selectedProfileId,
   currentHardware,
   onDownloadModel,
-  onDeleteModel
+  onDeleteModel,
+  workspaceEntries
 }: ProfessionalChatProps) {
   // Database state persisting to LocalStorage
   const [chats, setChats] = useState<ChatSession[]>([]);

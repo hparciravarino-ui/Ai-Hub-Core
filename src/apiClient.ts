@@ -8,29 +8,81 @@ export async function chatAPI(message: string, history: any[], systemInstruction
   const headers = getAuthHeaders();
   const activeOpenRouterKey = headers["x-openrouter-key"];
   const activeGeminiKey = headers["x-gemini-key"];
+  const activeOpenaiKey = headers["x-openai-key"];
+  const activeAnthropicKey = headers["x-anthropic-key"];
+  const activeGroqKey = headers["x-groq-key"];
 
-  if ((modelId && modelId.includes("/")) || (!activeGeminiKey && activeOpenRouterKey) || (modelId && activeOpenRouterKey)) {
-    if (!activeOpenRouterKey) {
-      throw new Error("Per eseguire modelli AI open-source online, devi configurare la tua OPENROUTER_API_KEY nel menu Sicurezza.");
-    }
-    const messages = [
-      { role: "system", content: systemInstruction || defaultInstruction },
-      ...history.map((h: any) => ({
-        role: h.role === "assistant" ? "assistant" : "user",
-        content: h.content
-      })),
-      { role: "user", content: message }
-    ];
+  const messages = [
+    { role: "system", content: systemInstruction || defaultInstruction },
+    ...history.map((h: any) => ({
+      role: h.role === "assistant" ? "assistant" : "user",
+      content: h.content
+    })),
+    { role: "user", content: message }
+  ];
 
-    let targetModel = modelId;
-    if (!targetModel || !targetModel.includes("/")) {
-        if (targetModel === "llama_3_2_3b") targetModel = "meta-llama/llama-3.2-3b-instruct";
-        else if (targetModel === "deepseek_r1_1_5b") targetModel = "deepseek/deepseek-r1-distill-qwen-1.5b";
-        else if (targetModel === "qwen_2_5_coder_1_5b") targetModel = "qwen/qwen-2.5-coder-32b-instruct";
-        else if (targetModel === "mistral_7b_instruct") targetModel = "mistralai/mistral-7b-instruct:free";
-        else targetModel = "google/gemini-2.0-flash-lite-preview-02-05:free";
-    }
+  let targetModel = modelId || "";
 
+  // Mapping generic IDs to specific models
+  if (!targetModel.includes("/")) {
+      if (targetModel === "llama_3_2_3b") targetModel = "meta-llama/llama-3.2-3b-instruct";
+      else if (targetModel === "deepseek_r1_1_5b") targetModel = "deepseek/deepseek-r1-distill-qwen-1.5b";
+      else if (targetModel === "qwen_2_5_coder_1_5b") targetModel = "qwen/qwen-2.5-coder-32b-instruct";
+      else if (targetModel === "mistral_7b_instruct") targetModel = "mistralai/mistral-7b-instruct:free";
+      else targetModel = "google/gemini-2.0-flash-lite-preview-02-05:free";
+  }
+
+  // 1. OpenAI Native
+  if (targetModel.startsWith("openai/") && activeOpenaiKey) {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${activeOpenaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: targetModel.replace("openai/", ""), messages })
+    });
+    if (!res.ok) throw new Error("Errore OpenAI API");
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  // 2. Anthropic Native
+  if (targetModel.startsWith("anthropic/") && activeAnthropicKey) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": activeAnthropicKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: targetModel.replace("anthropic/", ""),
+        system: systemInstruction || defaultInstruction,
+        messages: [
+          ...history.map((h: any) => ({ role: h.role === "assistant" ? "assistant" : "user", content: h.content })),
+          { role: "user", content: message }
+        ],
+        max_tokens: 1024
+      })
+    });
+    if (!res.ok) throw new Error("Errore Anthropic API");
+    const data = await res.json();
+    return data.content?.[0]?.text || "";
+  }
+
+  // 3. Groq Native (OpenAI compatible)
+  if (targetModel.startsWith("groq/") && activeGroqKey) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${activeGroqKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: targetModel.replace("groq/", ""), messages })
+    });
+    if (!res.ok) throw new Error("Errore Groq API");
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  // 4. OpenRouter fallback for everything else if available
+  if (activeOpenRouterKey && (targetModel.includes("/") || !activeGeminiKey)) {
     const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -53,8 +105,9 @@ export async function chatAPI(message: string, history: any[], systemInstruction
     return orData.choices?.[0]?.message?.content || "Nessuna risposta dal modello.";
   }
 
+  // 5. Gemini API Backup
   if (!activeGeminiKey) {
-    throw new Error("Chiave API non configurata. Inserisci una chiave GEMINI o OPENROUTER nel menu Sicurezza.");
+    throw new Error("Nessuna chiave API configurata o il provider per il modello scelto non ha una chiave (controlla il menu Sicurezza).");
   }
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeGeminiKey}`, {
@@ -71,15 +124,13 @@ export async function chatAPI(message: string, history: any[], systemInstruction
        ]
     })
   });
-
   if (!response.ok) {
     let errJson;
     try { errJson = await response.json(); } catch(e) {}
     throw new Error(errJson?.error?.message || "Errore di connessione API Gemini.");
   }
   const data = await response.json();
-  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
-  return reply;
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
 }
 
 export async function diagnoseAPI(hardwareProfile: any, selectedProfile: string) {
@@ -145,16 +196,45 @@ Keep it highly technical, precise, and encouraging!`;
 
 export async function searchModelsAPI(query: string) {
   if (!query) throw new Error("Query parameter is required");
-  const orRes = await fetch("https://openrouter.ai/api/v1/models");
-  if (!orRes.ok) throw new Error("Impossibile recuperare i modelli open source da OpenRouter.");
+  const headers = getAuthHeaders();
   
-  const orData = await orRes.json();
-  const allModels = orData.data || [];
+  let allModels: any[] = [];
+  
+  // Static additions for direct APIs
+  if (headers["x-openai-key"]) {
+    allModels.push(
+      { id: "openai/gpt-4o", name: "GPT-4o (OpenAI)", context_length: 128000, description: "Modello OpenAI ad alte prestazioni." },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini (OpenAI)", context_length: 128000, description: "Modello OpenAI veloce e compatto." }
+    );
+  }
+  if (headers["x-anthropic-key"]) {
+    allModels.push(
+      { id: "anthropic/claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", context_length: 200000, description: "Modello avanzato di Anthropic." },
+      { id: "anthropic/claude-3-haiku-20240307", name: "Claude 3 Haiku", context_length: 200000, description: "Modello veloce di Anthropic." }
+    );
+  }
+  if (headers["x-groq-key"]) {
+    allModels.push(
+      { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", context_length: 128000, description: "Llama 3.3 veloce tramite LPU." },
+      { id: "groq/mixtral-8x7b-32768", name: "Mixtral 8x7b (Groq)", context_length: 32768, description: "Modello MoE veloce su Groq." }
+    );
+  }
+
+  try {
+    const orRes = await fetch("https://openrouter.ai/api/v1/models");
+    if (orRes.ok) {
+        const orData = await orRes.json();
+        allModels = [...allModels, ...(orData.data || [])];
+    }
+  } catch (e) {
+    console.warn("OpenRouter fetch failed", e);
+  }
+
   const lowerQuery = query.toLowerCase();
   
   const searchResults = allModels.filter((m: any) => 
-    m.id.toLowerCase().includes(lowerQuery) || 
-    (m.name && m.name.toLowerCase().includes(lowerQuery))
+     m.id.toLowerCase().includes(lowerQuery) || 
+     (m.name && m.name.toLowerCase().includes(lowerQuery))
   ).slice(0, 10);
   
   const mappedModels = searchResults.map((m: any) => {
@@ -178,9 +258,61 @@ export async function searchModelsAPI(query: string) {
       digitalSignature: m.id.split("/")[0] || "Open Source",
       sha256: "Cloud Node",
       version: "Latest",
-      sourceUrl: `https://openrouter.ai/models/${m.id}`
+      sourceUrl: m.id.includes("/") && !m.id.startsWith("openai/") && !m.id.startsWith("anthropic/") && !m.id.startsWith("groq/") 
+        ? `https://openrouter.ai/models/${m.id}` 
+        : "#"
     };
   });
   
-  return { models: mappedModels, citations: [{ title: "OpenRouter Models List", url: "https://openrouter.ai/models" }] };
+  return { models: mappedModels, citations: [{ title: "Provider APIs", url: "#" }] };
+}
+
+export async function huggingfaceGenerateAPI(type: "image" | "video" | "audio", prompt: string) {
+  const headers = getAuthHeaders();
+  const hfKey = headers["x-huggingface-key"];
+
+  if (!hfKey) {
+    throw new Error("Per questa funzionalità è richiesta una Hugging Face API Key. Inseriscila nel menu Sicurezza.");
+  }
+
+  let modelEndpoint = "";
+  if (type === "image") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+  } else if (type === "audio") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/stabilityai/stable-audio-open-1.0";
+  } else if (type === "video") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b";
+  }
+
+  let retries = 3;
+  while (retries > 0) {
+    const response = await fetch(modelEndpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${hfKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputs: prompt }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      try {
+        const errJson = JSON.parse(errorText);
+        if (errJson.error && errJson.error.includes("is currently loading")) {
+          // Wait and retry
+          await new Promise(r => setTimeout(r, 5000));
+          retries--;
+          continue;
+        }
+        throw new Error(`Errore Hugging Face: ${errJson.error || errorText}`);
+      } catch (e: any) {
+        throw new Error(`Errore Hugging Face API: ${e.message || errorText}`);
+      }
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
+  throw new Error("Timeout durante il caricamento del modello su Hugging Face.");
 }
