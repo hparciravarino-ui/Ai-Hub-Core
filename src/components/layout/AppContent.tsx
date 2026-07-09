@@ -19,12 +19,18 @@ import AIEvolutionEngine from "../AIEvolutionEngine";
 import UserGuide from "../UserGuide";
 import FileManager from "../FileManager";
 import MediaLab from "../MediaLab";
+import InstallationSetupCenter from "../InstallationSetupCenter";
+import { ProviderManager } from "../ProviderManager";
 
 export function AppContent(props: any) {
   const { activeTab, securitySubTab, setSecuritySubTab, pluginSubTab, setPluginSubTab, ...rest } = props;
 
   return (
     <main className="flex-1 bg-appbg p-6 overflow-y-auto" id="central-view-viewport">
+      {activeTab === "installation" && <InstallationSetupCenter />}
+
+      {activeTab === "providers" && <ProviderManager />}
+
       {activeTab === "dashboard" && (
         <Dashboard
           currentHardware={rest.currentHardware}

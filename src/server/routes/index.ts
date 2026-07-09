@@ -14,6 +14,8 @@ import { desktopRouter } from "./desktop";
 import { telemetryRouter } from "./telemetry";
 import { qaRouter } from "./qa";
 import { packagingRouter } from "./packaging";
+import { installationRouter } from "./installation";
+import { providersRouter } from "./providers";
 
 export const apiRouter = Router();
 
@@ -26,6 +28,8 @@ apiRouter.use("/vector", vectorRouter);
 apiRouter.use("/agents", agentsRouter);
 apiRouter.use("/workflows", workflowsRouter);
 apiRouter.use("/memory", memoryRouter);
+apiRouter.use("/setup", installationRouter);
+apiRouter.use("/providers", providersRouter);
 
 // Enterprise APIs
 apiRouter.use("/enterprise/security", securityRouter);
