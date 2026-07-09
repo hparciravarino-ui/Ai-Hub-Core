@@ -92,7 +92,7 @@ installationRouter.get("/detect", async (req, res) => {
         humanName: osPlatform === "win32" ? "Windows" : osPlatform === "darwin" ? "macOS" : "Linux",
       },
       hardware: {
-        cpu: (rawHardware.cpu && typeof rawHardware.cpu === 'object') ? `${rawHardware.cpu.manufacturer} ${rawHardware.cpu.model}` : (rawHardware.cpu || os.cpus()[0]?.model || "Unknown CPU"),
+        cpu: (rawHardware.cpu && typeof rawHardware.cpu === 'object') ? `${rawHardware.cpu.manufacturer !== 'unknown' ? rawHardware.cpu.manufacturer : ''} ${rawHardware.cpu.model || os.cpus()[0]?.model || 'Generic CPU'}`.trim() : (rawHardware.cpu || os.cpus()[0]?.model || "Unknown CPU"),
         ram: rawHardware.ram?.total ? Math.round(rawHardware.ram.total / (1024 * 1024 * 1024)) : (rawHardware.ram || Math.round(os.totalmem() / (1024 * 1024 * 1024))),
         gpu: (rawHardware.gpu?.controllers && rawHardware.gpu.controllers.length > 0) ? rawHardware.gpu.controllers.map((c: any) => c.model).join(", ") : "Software Renderer / Integrated GPU",
         freeSpace: rawHardware.storage?.freeBytes ? Math.round(rawHardware.storage.freeBytes / (1024 * 1024 * 1024)) : (rawHardware.freeSpace || 120), // GB

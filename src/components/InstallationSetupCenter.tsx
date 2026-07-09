@@ -70,6 +70,7 @@ export default function InstallationSetupCenter() {
   // Fetch initial auto-detection & services
   const runAutoDetection = async () => {
     setIsDetecting(true);
+    await new Promise(r => setTimeout(r, 800)); // Artificial delay for UX
     try {
       const res = await fetch("/api/setup/detect");
       if (res.ok) {
