@@ -180,6 +180,7 @@ export default function ProfessionalChat({
   const [formAttachments, setFormAttachments] = useState<{ id: string; name: string; size: string; type: string; progress: number; status: "indexing" | "ready"; version: number; ocrText?: string }[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dirInputRef = useRef<HTMLInputElement>(null);
 
   // Active Chat states
   const [chatInput, setChatInput] = useState<string>("");
@@ -342,40 +343,70 @@ export default function ProfessionalChat({
     }
   };
 
-  const handleFilesUpload = (files: FileList) => {
-    const newAttachs = Array.from(files).map((file, idx) => {
-      const type = file.name.split(".").pop()?.toUpperCase() || "FILE";
+  const handleFilesUpload = async (files: FileList) => {
+    // 1. Create immediate placeholder attachments so UI updates fast
+    const tempAttachs = Array.from(files).map((file) => {
+      const ext = file.name.split(".").pop()?.toUpperCase() || "FILE";
       return {
-        id: "file_" + Math.random().toString(36).substr(2, 5) + "_" + Date.now(),
+        id: "temp_" + Math.random().toString(36).substr(2, 5),
         name: file.name,
         size: (file.size / 1024).toFixed(1) + " KB",
-        type,
+        type: ext,
         progress: 10,
         status: "indexing" as const,
         version: 1,
-        ocrText: type === "PDF" || type === "PNG" || type === "JPG" ? `[OCR AUTOMATICO AI HUB CORE: Rilevate tabelle e righe testuali offline da ${file.name}]` : ""
+        ocrText: "",
+        originalFile: file
       };
     });
+    
+    setFormAttachments(prev => [...prev, ...tempAttachs]);
 
-    setFormAttachments(prev => [...prev, ...newAttachs]);
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
 
-    // Simulate upload/indexing progress
-    newAttachs.forEach((att) => {
-      let progress = 10;
-      const interval = setInterval(() => {
-        progress += 30;
-        setFormAttachments(curr => curr.map((c) => {
-          if (c.id === att.id) {
-            if (progress >= 100) {
-              clearInterval(interval);
-              return { ...c, progress: 100, status: "ready" };
+    try {
+      const res = await fetch("/api/files/upload", {
+        method: "POST",
+        body: formData
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setFormAttachments(curr => curr.map(c => {
+          const matched = tempAttachs.find(t => t.id === c.id);
+          if (matched) {
+            let ocrStr = matched.type === "PDF" || matched.type === "PNG" || matched.type === "JPG" ? `[OCR AUTOMATICO AI HUB CORE: Rilevate tabelle e righe testuali offline da ${matched.name}]` : "";
+            const uploadedFile = data.files.find((f: any) => f.name === matched.name);
+            if (uploadedFile && uploadedFile.type === "zip") {
+               ocrStr = `[ZIP EXTRACTION: Estratti ${uploadedFile.extracted.length} file in sandbox locale]`;
             }
-            return { ...c, progress };
+
+            return { ...c, progress: 100, status: "ready", ocrText: ocrStr };
           }
           return c;
         }));
-      }, 300);
-    });
+      } else {
+        // Handle error
+        setFormAttachments(curr => curr.map(c => {
+          if (tempAttachs.some(t => t.id === c.id)) {
+            return { ...c, progress: 0, status: "error", ocrText: "Errore upload" };
+          }
+          return c;
+        }));
+      }
+    } catch (e) {
+      console.error("Upload failed", e);
+      setFormAttachments(curr => curr.map(c => {
+        if (tempAttachs.some(t => t.id === c.id)) {
+          return { ...c, progress: 0, status: "error", ocrText: "Errore rete" };
+        }
+        return c;
+      }));
+    }
   };
 
   const removeAttachment = (id: string) => {
@@ -1329,18 +1360,30 @@ export default function ProfessionalChat({
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-zinc-300">File & Documenti (RAG)</label>
-                      <div
-                        onDragEnter={handleDrag}
-                        onDragOver={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                        className="border border-dashed border-zinc-700 bg-appbg/50 hover:bg-appbg rounded-xl p-6 text-center cursor-pointer transition-colors h-32 flex flex-col justify-center items-center"
-                      >
-                        <FileUp className="w-6 h-6 text-emerald-400 mb-2" />
-                        <span className="text-xs text-zinc-400">Carica file o trascina qui</span>
-                        <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                      <label className="text-xs font-semibold text-zinc-300">File, Cartelle & Documenti (RAG, Raw, ZIP)</label>
+                      <div className="flex gap-2">
+                        <div
+                          onDragEnter={handleDrag}
+                          onDragOver={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDrop={handleDrop}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex-1 border border-dashed border-zinc-700 bg-appbg/50 hover:bg-appbg rounded-xl p-6 text-center cursor-pointer transition-colors h-32 flex flex-col justify-center items-center"
+                        >
+                          <FileUp className="w-6 h-6 text-emerald-400 mb-2" />
+                          <span className="text-xs text-zinc-400">Carica file o trascina qui</span>
+                          <span className="text-[10px] text-zinc-500">Supporta raw, zip, pdf</span>
+                          <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                        </div>
+                        <div
+                          onClick={() => dirInputRef.current?.click()}
+                          className="flex-1 border border-dashed border-zinc-700 bg-appbg/50 hover:bg-appbg rounded-xl p-6 text-center cursor-pointer transition-colors h-32 flex flex-col justify-center items-center"
+                        >
+                          <FolderPlus className="w-6 h-6 text-amber-400 mb-2" />
+                          <span className="text-xs text-zinc-400">Carica un'intera cartella</span>
+                          <span className="text-[10px] text-zinc-500">Strutture complesse</span>
+                          <input type="file" multiple {...{webkitdirectory: "true", directory: "true"} as any} ref={dirInputRef} onChange={handleFileSelect} className="hidden" />
+                        </div>
                       </div>
                     </div>
                   </div>

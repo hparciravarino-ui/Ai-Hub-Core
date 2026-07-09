@@ -399,64 +399,62 @@ export default function InstallationSetupCenter() {
         </button>
       </div>
 
-      {/* Subtab content viewports */}
-
-      {/* 1. GUIDED SETUP WIZARD */}
+      {/* Subtab content viewports *      {/* 1. GUIDED SETUP WIZARD */}
       {activeSubTab === "wizard" && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" id="wizard-view">
-          {/* Steps Timeline Sidebar */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 h-fit space-y-4 col-span-1">
-            <div className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-widest pl-2">Step di Installazione</div>
-            <div className="flex flex-col space-y-2">
+        <div className="flex flex-col space-y-6" id="wizard-view">
+          {/* Horizontal Steps Timeline */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 w-full overflow-x-auto custom-scrollbar">
+            <div className="flex items-center min-w-max px-2">
               {[
-                { step: 1, label: "Requisiti Sistema", icon: Cpu, desc: "Verifica risorse e ambiente OS" },
-                { step: 2, label: "Configura .env", icon: KeyRound, desc: "Chiavi e impostazioni ambientali" },
-                { step: 3, label: "Dipendenze & Repair", icon: Wrench, desc: "Verifica dei pacchetti locali" },
-                { step: 4, label: "Avvio Servizi", icon: Server, desc: "Controllo dei micro-servizi" },
-                { step: 5, label: "Diagnostica Finale", icon: CheckCircle2, desc: "Health check e connettività" }
-              ].map((s) => (
-                <button
-                  key={s.step}
-                  onClick={() => setWizardStep(s.step)}
-                  className={`w-full flex items-start space-x-3 p-3 rounded-lg text-left transition ${
-                    wizardStep === s.step
-                      ? "bg-zinc-800 border border-cyan-500/50 text-white font-semibold"
-                      : wizardStep > s.step
-                      ? "text-emerald-400 hover:bg-zinc-900/60"
-                      : "text-zinc-500 hover:bg-zinc-900/40"
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-mono ${
-                    wizardStep === s.step
-                      ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500"
-                      : wizardStep > s.step
-                      ? "bg-emerald-950/60 text-emerald-400 border border-emerald-500/60"
-                      : "bg-zinc-800 text-zinc-500 border border-zinc-700"
-                  }`}>
-                    {wizardStep > s.step ? <Check className="w-3.5 h-3.5" /> : s.step}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold truncate leading-tight">{s.label}</p>
-                    <p className="text-[10px] text-zinc-500 truncate mt-0.5">{s.desc}</p>
-                  </div>
-                </button>
+                { step: 1, label: "Sistema" },
+                { step: 2, label: "Ambiente" },
+                { step: 3, label: "Dipendenze" },
+                { step: 4, label: "Servizi" },
+                { step: 5, label: "Check" }
+              ].map((s, idx, arr) => (
+                <React.Fragment key={s.step}>
+                  <button
+                    onClick={() => setWizardStep(s.step)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition ${
+                      wizardStep === s.step
+                        ? "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-semibold"
+                        : wizardStep > s.step
+                        ? "text-emerald-400 hover:bg-zinc-800/50"
+                        : "text-zinc-500 hover:bg-zinc-800/30"
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-mono border ${
+                      wizardStep === s.step
+                        ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50"
+                        : wizardStep > s.step
+                        ? "bg-emerald-950/60 text-emerald-400 border-emerald-500/60"
+                        : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                    }`}>
+                      {wizardStep > s.step ? <Check className="w-3 h-3" /> : s.step}
+                    </div>
+                    <span className="text-xs font-bold whitespace-nowrap">{s.label}</span>
+                  </button>
+                  {idx < arr.length - 1 && (
+                    <div className={`h-px w-6 sm:w-10 mx-2 ${wizardStep > s.step ? "bg-emerald-500/50" : "bg-zinc-800"}`} />
+                  )}
+                </React.Fragment>
               ))}
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800">
-              <button
-                onClick={runAutoDetection}
-                disabled={isDetecting}
-                className="w-full bg-zinc-850 hover:bg-zinc-800 text-zinc-300 font-semibold py-1.5 px-3 rounded-lg text-xs font-mono flex items-center justify-center space-x-1 border border-zinc-700 transition disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? 'animate-spin' : ''}`} />
-                <span>Riesegui scansione</span>
-              </button>
+              
+              <div className="ml-auto pl-4">
+                <button
+                  onClick={runAutoDetection}
+                  disabled={isDetecting}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold py-1.5 px-3 rounded-lg text-xs font-mono flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Riesegui scansione</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Current Step viewport card */}
-          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 col-span-1 lg:col-span-3 space-y-6">
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-4 sm:p-6 lg:p-8 space-y-6">
             
             {/* STEP 1: SYSTEM REQUIREMENTS CHECKLIST */}
             {wizardStep === 1 && (

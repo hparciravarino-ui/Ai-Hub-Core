@@ -16,6 +16,7 @@ import { qaRouter } from "./qa";
 import { packagingRouter } from "./packaging";
 import { installationRouter } from "./installation";
 import { providersRouter } from "./providers";
+import { filesRouter } from "./files";
 
 export const apiRouter = Router();
 
@@ -30,6 +31,7 @@ apiRouter.use("/workflows", workflowsRouter);
 apiRouter.use("/memory", memoryRouter);
 apiRouter.use("/setup", installationRouter);
 apiRouter.use("/providers", providersRouter);
+apiRouter.use("/files", filesRouter);
 
 // Enterprise APIs
 apiRouter.use("/enterprise/security", securityRouter);
