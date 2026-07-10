@@ -267,7 +267,7 @@ export async function searchModelsAPI(query: string) {
   return { models: mappedModels, citations: [{ title: "Provider APIs", url: "#" }] };
 }
 
-export async function huggingfaceGenerateAPI(type: "image" | "video" | "audio", prompt: string) {
+export async function huggingfaceGenerateAPI(type: "image" | "video" | "audio", prompt: string, modelId?: string) {
   const headers = getAuthHeaders();
   const hfKey = headers["x-huggingface-key"];
 
@@ -276,12 +276,28 @@ export async function huggingfaceGenerateAPI(type: "image" | "video" | "audio", 
   }
 
   let modelEndpoint = "";
-  if (type === "image") {
+  const mappedModel = modelId || "";
+
+  if (mappedModel === "flux-1-schnell") {
     modelEndpoint = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
-  } else if (type === "audio") {
-    modelEndpoint = "https://api-inference.huggingface.co/models/stabilityai/stable-audio-open-1.0";
-  } else if (type === "video") {
+  } else if (mappedModel === "sd-3.5-large") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large";
+  } else if (mappedModel === "text-to-video-ms-1.7b") {
     modelEndpoint = "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b";
+  } else if (mappedModel === "cogvideox-5b") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/THUDM/CogVideoX-5b";
+  } else if (mappedModel === "stable-audio-open") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/stabilityai/stable-audio-open-1.0";
+  } else if (mappedModel === "audioldm-2") {
+    modelEndpoint = "https://api-inference.huggingface.co/models/cvssp/audioldm2";
+  } else {
+    if (type === "image") {
+      modelEndpoint = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+    } else if (type === "audio") {
+      modelEndpoint = "https://api-inference.huggingface.co/models/stabilityai/stable-audio-open-1.0";
+    } else if (type === "video") {
+      modelEndpoint = "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b";
+    }
   }
 
   let retries = 3;

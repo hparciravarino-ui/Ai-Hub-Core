@@ -26,7 +26,13 @@ export default function MediaLab() {
     ]
   };
 
-  const selectedModel = models[activeTab][0];
+  const [selectedModel, setSelectedModel] = useState<any>(models.image[0]);
+
+  const handleTabChange = (tab: "image" | "video" | "audio") => {
+    setActiveTab(tab);
+    setSelectedModel(models[tab][0]);
+    setResult(null);
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -37,8 +43,8 @@ export default function MediaLab() {
     const startTime = Date.now();
 
     try {
-      // Use real API call
-      const finalResult = await huggingfaceGenerateAPI(activeTab, prompt);
+      // Use real API call with model ID
+      const finalResult = await huggingfaceGenerateAPI(activeTab, prompt, selectedModel.id);
       setResult(finalResult);
       setGenerationTime(parseFloat(((Date.now() - startTime) / 1000).toFixed(2)));
     } catch (e: any) {
@@ -71,7 +77,7 @@ export default function MediaLab() {
 
       <div className="flex border-b border-zinc-800 space-x-4 bg-barbg p-2 rounded-xl">
         <button
-          onClick={() => { setActiveTab("image"); setResult(null); }}
+          onClick={() => handleTabChange("image")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
             activeTab === "image" ? "bg-zinc-800/60 text-zinc-100 border border-zinc-850" : "text-zinc-500 hover:text-zinc-300"
           }`}
@@ -79,7 +85,7 @@ export default function MediaLab() {
           <ImageIcon className="w-4 h-4" /> Immagini
         </button>
         <button
-          onClick={() => { setActiveTab("video"); setResult(null); }}
+          onClick={() => handleTabChange("video")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
             activeTab === "video" ? "bg-zinc-800/60 text-zinc-100 border border-zinc-850" : "text-zinc-500 hover:text-zinc-300"
           }`}
@@ -87,7 +93,7 @@ export default function MediaLab() {
           <Video className="w-4 h-4" /> Video
         </button>
         <button
-          onClick={() => { setActiveTab("audio"); setResult(null); }}
+          onClick={() => handleTabChange("audio")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
             activeTab === "audio" ? "bg-zinc-800/60 text-zinc-100 border border-zinc-850" : "text-zinc-500 hover:text-zinc-300"
           }`}
@@ -102,9 +108,13 @@ export default function MediaLab() {
             <h3 className="text-sm font-semibold text-zinc-200">Modelli Consigliati</h3>
             <div className="space-y-2">
               {models[activeTab].map((m) => (
-                <div key={m.id} className={`p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
-                  selectedModel.id === m.id ? 'bg-violet-950/20 border-violet-900 text-violet-300' : 'bg-barbg border-zinc-800 text-zinc-400 hover:border-zinc-600'
-                }`}>
+                <div 
+                  key={m.id} 
+                  onClick={() => setSelectedModel(m)}
+                  className={`p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    selectedModel.id === m.id ? 'bg-violet-950/20 border-violet-900 text-violet-300' : 'bg-barbg border-zinc-800 text-zinc-400 hover:border-zinc-600'
+                  }`}
+                >
                   <div className="font-semibold">{m.name}</div>
                   <div className="flex justify-between mt-1 text-[10px] opacity-70">
                     <span>{m.type}</span>

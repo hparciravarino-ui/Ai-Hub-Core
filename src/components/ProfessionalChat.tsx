@@ -931,27 +931,47 @@ export default function ProfessionalChat({
                 const count = chats.filter(c => c.projectId === p.id && c.status !== "trash").length;
                 const isSelected = selectedProjectId === p.id;
                 return (
-                  <button
+                  <div
                     key={p.id}
                     onClick={() => {
                       setSelectedProjectId(p.id);
                       setShowTrash(false);
                       setShowArchive(false);
                     }}
-                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition ${
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition cursor-pointer select-none ${
                       isSelected
                         ? "bg-zinc-800/60 text-emerald-400 font-semibold border border-zinc-700/60"
                         : "text-zinc-400 hover:bg-zinc-900/40 hover:text-zinc-200"
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
+                    <div className="flex items-center gap-2 truncate flex-1 min-w-0">
                       {isSelected ? <FolderOpen className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Folder className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
                       <span className="truncate">{p.name}</span>
                     </div>
-                    <span className="text-[10px] font-mono bg-zinc-950/80 px-1.5 py-0.2 rounded text-zinc-500 border border-zinc-850">
-                      {count}
-                    </span>
-                  </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const projectChats = chats.filter(c => c.projectId === p.id);
+                          const projectData = { project: p, chats: projectChats };
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData, null, 2));
+                          const downloadAnchor = document.createElement("a");
+                          downloadAnchor.setAttribute("href", dataStr);
+                          downloadAnchor.setAttribute("download", `${p.name.toLowerCase().replace(/\s+/g, '_')}_backup.json`);
+                          document.body.appendChild(downloadAnchor);
+                          downloadAnchor.click();
+                          downloadAnchor.remove();
+                        }}
+                        className="p-1 text-zinc-500 hover:text-emerald-400 rounded hover:bg-zinc-800/80 transition-all cursor-pointer"
+                        title="Download Progetto (JSON)"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[10px] font-mono bg-zinc-950/80 px-1.5 py-0.2 rounded text-zinc-500 border border-zinc-850">
+                        {count}
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
