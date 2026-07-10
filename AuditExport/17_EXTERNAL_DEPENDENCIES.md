@@ -1,0 +1,16 @@
+# External Dependencies
+
+* `express` (Backend HTTP server)
+* `vite` (Dev server & builder)
+* `react`, `react-dom` (UI Library)
+* `tailwindcss` (Styling framework)
+* `@google/genai` (Gemini API integration SDK)
+* `lucide-react` (SVG Icons library)
+* `systeminformation` (OS and hardware telemetry)
+* `multer` (Multi-part form parser for file uploads)
+* `adm-zip` (Archive extraction for uploaded ZIP files)
+* `react-markdown` (Markdown rendering for Chat UI)
+* `helmet` (HTTP header security)
+* `cors` (Cross-origin configuration)
+* `express-rate-limit` (Request rate limiting)
+* `dotenv` (Environment variable loader)
