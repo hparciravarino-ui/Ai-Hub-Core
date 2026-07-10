@@ -13,6 +13,15 @@ hardwareRouter.get("/", async (req, res) => {
   }
 });
 
+hardwareRouter.post("/client-telemetry", async (req, res) => {
+  try {
+    HardwareEngine.registerClientTelemetry(req.body);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 hardwareRouter.get("/metrics", async (req, res) => {
   try {
     const data = await MetricsEngine.getLiveMetrics();

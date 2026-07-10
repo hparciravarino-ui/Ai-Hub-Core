@@ -17,6 +17,64 @@ export interface HardwareProfile {
   runtimes?: Record<string, string | null>;
   aiHardware?: string[];
   raw?: any;
+  levels?: {
+    host: {
+      os: string;
+      brandModel: string;
+      cpuName: string;
+      cores: number;
+      threads: number;
+      ramGB: number;
+      gpuName: string;
+      vramGB: number;
+      aiAccelerators: string[];
+      displayResolution: string;
+      osVersion: string;
+      kernel: string;
+    };
+    client: {
+      browserName: string;
+      browserVersion: string;
+      browserEngine: string;
+      webGpuSupported: boolean;
+      webGlSupported: boolean;
+      canvasAccelerated: boolean;
+      concurrency: number;
+      deviceMemory: number;
+      displayInfo: string;
+      darkMode: boolean;
+      language: string;
+      timezone: string;
+      storageEstimate: string;
+      indexedDbAvailable: boolean;
+      localStorageAvailable: boolean;
+      sessionStorageAvailable: boolean;
+      cacheStorageAvailable: boolean;
+    };
+    backend: {
+      processOS: string;
+      processArch: string;
+      containerized: boolean;
+      containerType: string;
+      nodeVersion: string;
+      hostOS: string;
+      memoryLimit: string;
+      memoryUsed: string;
+      filesystemType: string;
+      readWritePermissions: boolean;
+      tempDirectoryAccess: boolean;
+    };
+    aiTarget: {
+      targetName: string;
+      hostType: string;
+      selectedModel: string;
+      activeDriver: string;
+      predictedSpeedTps: number;
+      embeddingSupported: boolean;
+      streamingSupported: boolean;
+      capabilities: string[];
+    };
+  };
 }
 
 export interface FileEntry {

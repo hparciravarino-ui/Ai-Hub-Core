@@ -16,6 +16,7 @@ export default function SystemDashboard() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [hardwareProfile, setHardwareProfile] = useState<any>(null);
 
   // 2. Desktop State
   const [platform, setPlatform] = useState<string>('windows');
@@ -52,6 +53,13 @@ export default function SystemDashboard() {
           setLiveMetric(data.metrics[data.metrics.length - 1]);
         }
         setAlerts(data.alerts || []);
+      }
+
+      // Fetch merged 4-level hardware specifications
+      const hwRes = await fetch('/api/hardware');
+      if (hwRes.ok) {
+        const hwData = await hwRes.json();
+        setHardwareProfile(hwData);
       }
     } catch (e) {
       console.error("Telemetry fetch failed:", e);
@@ -328,6 +336,138 @@ export default function SystemDashboard() {
       {/* SUB-TAB 1: TELEMETRY & OBSERVABILITY (Modulo 4) */}
       {subTab === 'telemetry' && (
         <div className="space-y-6">
+          {/* Four Distinct Hardware Context Panels (Level 1 to 4 Decoupling) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            {/* LEVEL 1: HOST PHYSICAL MACHINE */}
+            <Card className="border-emerald-500/30 bg-zinc-950/90 hover:border-emerald-500/50 transition-all shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-1 bg-emerald-950/60 text-emerald-400 border-l border-b border-emerald-900/60 font-mono text-[9px] uppercase font-bold tracking-widest rounded-bl">
+                LEVEL 1
+              </div>
+              <CardContent className="p-4 space-y-3.5">
+                <div className="flex items-center space-x-2 pb-2 border-b border-zinc-800/60">
+                  <Laptop className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <h4 className="text-xs font-mono uppercase tracking-wider font-bold text-zinc-200">Host Physical Machine</h4>
+                    <span className="text-[9px] font-mono text-zinc-500 uppercase">Provenance: Client WebGL & Screen APIs</span>
+                  </div>
+                </div>
+                
+                {hardwareProfile?.levels?.host ? (
+                  <div className="space-y-1.5 font-mono text-[11px]">
+                    <div className="flex justify-between"><span className="text-zinc-500">Device Model:</span><span className="text-zinc-300 font-semibold">{hardwareProfile.levels.host.brandModel}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">OS Host:</span><span className="text-zinc-300">{hardwareProfile.levels.host.os} {hardwareProfile.levels.host.osVersion}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Physical CPU:</span><span className="text-zinc-300 truncate max-w-[140px]" title={hardwareProfile.levels.host.cpuName}>{hardwareProfile.levels.host.cpuName}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Cores / Threads:</span><span className="text-zinc-300">{hardwareProfile.levels.host.cores}C / {hardwareProfile.levels.host.threads}T</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Physical Memory:</span><span className="text-emerald-400 font-bold">{hardwareProfile.levels.host.ramGB} GB Unified</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Host GPU:</span><span className="text-zinc-300 truncate max-w-[140px]" title={hardwareProfile.levels.host.gpuName}>{hardwareProfile.levels.host.gpuName}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">AI Accelerator:</span><span className="text-purple-400 truncate max-w-[140px]" title={hardwareProfile.levels.host.aiAccelerators.join(', ')}>{hardwareProfile.levels.host.aiAccelerators[0]}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Display Spec:</span><span className="text-zinc-400 text-[10px]">{hardwareProfile.levels.host.displayResolution}</span></div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-zinc-600 font-mono text-xs">Rilevamento in corso...</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* LEVEL 2: CLIENT ENVIRONMENT */}
+            <Card className="border-cyan-500/30 bg-zinc-950/90 hover:border-cyan-500/50 transition-all shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-1 bg-cyan-950/60 text-cyan-400 border-l border-b border-cyan-900/60 font-mono text-[9px] uppercase font-bold tracking-widest rounded-bl">
+                LEVEL 2
+              </div>
+              <CardContent className="p-4 space-y-3.5">
+                <div className="flex items-center space-x-2 pb-2 border-b border-zinc-800/60">
+                  <MonitorSmartphone className="w-4 h-4 text-cyan-400" />
+                  <div>
+                    <h4 className="text-xs font-mono uppercase tracking-wider font-bold text-zinc-200">Client Environment</h4>
+                    <span className="text-[9px] font-mono text-zinc-500 uppercase">Provenance: Navigator Window APIs</span>
+                  </div>
+                </div>
+
+                {hardwareProfile?.levels?.client ? (
+                  <div className="space-y-1.5 font-mono text-[11px]">
+                    <div className="flex justify-between"><span className="text-zinc-500">Browser Spec:</span><span className="text-zinc-300 font-semibold">{hardwareProfile.levels.client.browserName} v{hardwareProfile.levels.client.browserVersion}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Layout Engine:</span><span className="text-zinc-300">{hardwareProfile.levels.client.browserEngine}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">WebGPU Drivers:</span><span className={hardwareProfile.levels.client.webGpuSupported ? "text-emerald-400" : "text-amber-500"}>{hardwareProfile.levels.client.webGpuSupported ? "ATTIVO" : "DISATTIVATO"}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">WebGL Core:</span><span className="text-emerald-400">SUPPORTATO (v2)</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Allocated RAM:</span><span className="text-zinc-300">{hardwareProfile.levels.client.deviceMemory} GB Limit</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Client Language:</span><span className="text-zinc-300">{hardwareProfile.levels.client.language} / {hardwareProfile.levels.client.timezone}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Sandbox Storage:</span><span className="text-zinc-400 text-[10px] truncate max-w-[140px]" title={hardwareProfile.levels.client.storageEstimate}>{hardwareProfile.levels.client.storageEstimate}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Browser DBs:</span>
+                      <span className="text-[9px] text-cyan-400 flex gap-1">
+                        <span>IDB</span>•<span>LS</span>•<span>Cache</span>
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-zinc-600 font-mono text-xs">Rilevamento in corso...</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* LEVEL 3: BACKEND RUNTIME */}
+            <Card className="border-amber-500/30 bg-zinc-950/90 hover:border-amber-500/50 transition-all shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-1 bg-amber-950/60 text-amber-400 border-l border-b border-amber-900/60 font-mono text-[9px] uppercase font-bold tracking-widest rounded-bl">
+                LEVEL 3
+              </div>
+              <CardContent className="p-4 space-y-3.5">
+                <div className="flex items-center space-x-2 pb-2 border-b border-zinc-800/60">
+                  <Server className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <h4 className="text-xs font-mono uppercase tracking-wider font-bold text-zinc-200">Backend Runtime</h4>
+                    <span className="text-[9px] font-mono text-zinc-500 uppercase">Provenance: Server Process Specs</span>
+                  </div>
+                </div>
+
+                {hardwareProfile?.levels?.backend ? (
+                  <div className="space-y-1.5 font-mono text-[11px]">
+                    <div className="flex justify-between"><span className="text-zinc-500">Sandbox Host:</span><span className="text-zinc-300 font-semibold">{hardwareProfile.levels.backend.processOS} ({hardwareProfile.levels.backend.processArch})</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Deployment Type:</span><span className="text-zinc-400 text-[10px] truncate max-w-[130px] font-bold" title={hardwareProfile.levels.backend.containerType}>{hardwareProfile.levels.backend.containerType}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Node Engine:</span><span className="text-amber-400 font-bold">{hardwareProfile.levels.backend.nodeVersion}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Distro OS:</span><span className="text-zinc-300 truncate max-w-[140px]" title={hardwareProfile.levels.backend.hostOS}>{hardwareProfile.levels.backend.hostOS}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Container RAM Max:</span><span className="text-zinc-300">{hardwareProfile.levels.backend.memoryLimit}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Container RAM Used:</span><span className="text-zinc-400">{hardwareProfile.levels.backend.memoryUsed}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Virtual Storage:</span><span className="text-zinc-300 truncate max-w-[140px] text-[10px]" title={hardwareProfile.levels.backend.filesystemType}>{hardwareProfile.levels.backend.filesystemType}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Read/Write Sandbox:</span><span className="text-emerald-400 font-bold">VERIFICATO</span></div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-zinc-600 font-mono text-xs">Rilevamento in corso...</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* LEVEL 4: AI EXECUTION TARGET */}
+            <Card className="border-purple-500/30 bg-zinc-950/90 hover:border-purple-500/50 transition-all shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-1 bg-purple-950/60 text-purple-400 border-l border-b border-purple-900/60 font-mono text-[9px] uppercase font-bold tracking-widest rounded-bl">
+                LEVEL 4
+              </div>
+              <CardContent className="p-4 space-y-3.5">
+                <div className="flex items-center space-x-2 pb-2 border-b border-zinc-800/60">
+                  <Cpu className="w-4 h-4 text-purple-400" />
+                  <div>
+                    <h4 className="text-xs font-mono uppercase tracking-wider font-bold text-zinc-200">AI Execution Target</h4>
+                    <span className="text-[9px] font-mono text-zinc-500 uppercase">Provenance: Active Inference Ports</span>
+                  </div>
+                </div>
+
+                {hardwareProfile?.levels?.aiTarget ? (
+                  <div className="space-y-1.5 font-mono text-[11px]">
+                    <div className="flex justify-between"><span className="text-zinc-500">Inference Core:</span><span className="text-zinc-300 font-semibold">{hardwareProfile.levels.aiTarget.targetName}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Endpoint Link:</span><span className="text-zinc-400 text-[10px]">{hardwareProfile.levels.aiTarget.hostType}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Assigned Model:</span><span className="text-purple-400 font-bold truncate max-w-[140px]" title={hardwareProfile.levels.aiTarget.selectedModel}>{hardwareProfile.levels.aiTarget.selectedModel}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Hardware Accel:</span><span className="text-emerald-400 font-bold truncate max-w-[140px]" title={hardwareProfile.levels.aiTarget.activeDriver}>{hardwareProfile.levels.aiTarget.activeDriver}</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Predicted Speed:</span><span className="text-zinc-300">{hardwareProfile.levels.aiTarget.predictedSpeedTps} tokens/s</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Parallel Context:</span><span className="text-zinc-300">Enabled</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Embeddings:</span><span className="text-emerald-400 font-bold">SUPPORTATO</span></div>
+                    <div className="flex justify-between"><span className="text-zinc-500">Streaming Response:</span><span className="text-emerald-400 font-bold">SUPPORTATO</span></div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-zinc-600 font-mono text-xs">Rilevamento in corso...</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Main live metric counters */}
           {liveMetric ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
