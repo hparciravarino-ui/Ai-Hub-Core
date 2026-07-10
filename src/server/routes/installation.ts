@@ -219,15 +219,12 @@ installationRouter.post("/dependencies/repair", async (req, res) => {
 
 // 4. SERVICES MANAGEMENT
 installationRouter.get("/services", async (req, res) => {
-  const os = require('os');
-  
   // Actually check port 11434 for local_llm
   let isOllamaRunning = false;
   try {
-    const net = require('net');
     isOllamaRunning = await new Promise((resolve) => {
       const server = net.createServer();
-      server.once('error', (err) => resolve(err.code !== 'EADDRINUSE'));
+      server.once('error', (err: any) => resolve(err.code !== 'EADDRINUSE'));
       server.once('listening', () => {
         server.close();
         resolve(true); // Port is free, meaning not running
