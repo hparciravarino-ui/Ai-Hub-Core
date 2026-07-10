@@ -362,3 +362,452 @@ installationRouter.post("/backup/import", (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// 7. OS INSTALLER SCRIPT & HARDWARE AUTO-ADAPTATION ENGINE
+installationRouter.post("/installer/generate", (req, res) => {
+  try {
+    const { 
+      osPlatform, 
+      ramGB, 
+      cpuCores, 
+      threads, 
+      hasGpu 
+    } = req.body;
+
+    const ram = parseInt(ramGB) || 8;
+    const cores = parseInt(cpuCores) || 4;
+    const systemThreads = parseInt(threads) || (cores * 2);
+
+    // Hardware Auto-Adaptation Logic: Smart configuration limits to avoid slow-downs, OOM or freeze
+    let recommendedModel = "llama3.2:3b";
+    let contextSize = 4096;
+    let threadsLimit = Math.max(1, cores - 1); // Save 1 core for OS responsivity
+    let gpuLayers = 0;
+    let batchSize = 256;
+    let hardwareClass = "Balanced (Sufficient)";
+
+    if (osPlatform === "raspberry") {
+      // Severe low-resource constraints (Raspberry Pi 4 / 5)
+      recommendedModel = "qwen2.5:0.5b";
+      contextSize = 2048;
+      threadsLimit = Math.max(1, cores - 1);
+      gpuLayers = 0;
+      batchSize = 128;
+      hardwareClass = "Low Resource / Embedded ARM";
+    } else if (ram <= 4) {
+      recommendedModel = "qwen2.5:1.5b";
+      contextSize = 2048;
+      threadsLimit = Math.max(1, cores - 1);
+      gpuLayers = 0;
+      batchSize = 128;
+      hardwareClass = "Low Resource / Legacy CPU";
+    } else if (ram <= 8) {
+      recommendedModel = "llama3.2:3b";
+      contextSize = 4096;
+      threadsLimit = Math.max(1, cores - 1);
+      gpuLayers = hasGpu ? 16 : 0;
+      batchSize = 256;
+      hardwareClass = "Standard Client Node";
+    } else if (ram <= 16) {
+      recommendedModel = "qwen2.5-coder:7b";
+      contextSize = 8192;
+      threadsLimit = Math.max(2, cores - 2); // Save 2 cores for heavy multitasking
+      gpuLayers = hasGpu ? 32 : 0;
+      batchSize = 512;
+      hardwareClass = "Pro Developer workstation";
+    } else {
+      // High-performance environment
+      recommendedModel = "mistral:7b";
+      contextSize = 16384;
+      threadsLimit = Math.max(4, systemThreads - 4);
+      gpuLayers = hasGpu ? 48 : 0;
+      batchSize = 512;
+      hardwareClass = "Enterprise Server / AI Workstation";
+    }
+
+    // Generator Functions for installer scripts
+    const generateMacScript = () => `#!/bin/bash
+# AI Hub Community Enterprise - Installer macOS
+# Progettato da Senior Enterprise Team - Auto-adattivo e Sicuro
+
+echo "=== INIZIO INSTALLAZIONE AI HUB COMMUNITY PER macOS ==="
+echo "Classe Hardware Rilevata: ${hardwareClass}"
+echo "Configurazione Auto-Adattata: CPU Threads: ${threadsLimit}, Modello Consigliato: ${recommendedModel}, Contesto: ${contextSize}"
+
+# 1. Controllo Homebrew
+if ! command -v brew &> /dev/null; then
+    echo "[!] Homebrew non rilevato. Installazione in corso..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+else
+    echo "[✓] Homebrew rilevato."
+fi
+
+# 2. Installazione Node.js e Git
+echo "[*] Installazione Node.js e Git..."
+brew install node@20 git
+
+# 3. Installazione Ollama per macOS
+if ! command -v ollama &> /dev/null; then
+    echo "[!] Ollama non rilevato. Installazione tramite brew cask..."
+    brew install --cask ollama
+else
+    echo "[✓] Ollama rilevato."
+fi
+
+# 4. Avvio Ollama in background se non attivo
+if ! pgrep -x "ollama" > /dev/null; then
+    echo "[*] Avvio di Ollama in background..."
+    open -a Ollama
+    sleep 5
+fi
+
+# 5. Scaricamento del modello ottimizzato
+echo "[*] Scaricamento del modello ottimizzato per il tuo hardware (${recommendedModel})..."
+ollama pull ${recommendedModel}
+
+# 6. Creazione file .env locale con auto-adattamento
+echo "[*] Configurazione variabili di ambiente..."
+cat << EOF > .env
+PORT=3000
+BACKEND_PORT=3001
+GEMINI_API_KEY=""
+LOCAL_DB_PATH="./data/hub.db"
+ENABLE_TELEMETRY=true
+# Parametri di auto-adattamento hardware rilevati
+SYSTEM_THREADS=${threadsLimit}
+MODEL_CONTEXT_LENGTH=${contextSize}
+OLLAMA_NUM_GPU=${gpuLayers}
+OLLAMA_BATCH_SIZE=${batchSize}
+EOF
+
+echo "[✓] File .env creato con i parametri ottimali."
+echo "[*] Installazione dipendenze AI Hub..."
+npm install
+
+echo "=== INSTALLAZIONE COMPLETATA! ==="
+echo "Per avviare l'applicazione in locale esegui:"
+echo "npm run dev"
+`;
+
+    const generateLinuxScript = () => `#!/bin/bash
+# AI Hub Community Enterprise - Installer Linux (Ubuntu/Debian)
+# Progettato da Senior Enterprise Team - Auto-adattivo e Sicuro
+
+echo "=== INIZIO INSTALLAZIONE AI HUB COMMUNITY PER LINUX ==="
+echo "Classe Hardware Rilevata: ${hardwareClass}"
+echo "Configurazione Auto-Adattata: CPU Threads: ${threadsLimit}, Modello Consigliato: ${recommendedModel}, Contesto: ${contextSize}"
+
+# 1. Aggiornamento pacchetti
+echo "[*] Aggiornamento dei pacchetti di sistema..."
+sudo apt-get update -y
+
+# 2. Node.js e Git
+if ! command -v node &> /dev/null; then
+    echo "[!] Node.js non rilevato. Installazione di Node.js 20..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs git build-essential
+else
+    echo "[✓] Node.js rilevato: \$(node -v)"
+fi
+
+# 3. Controllo GPU NVIDIA / CUDA
+echo "[*] Verifica acceleratori hardware..."
+if command -v nvidia-smi &> /dev/null; then
+    echo "[✓] Rilevato driver NVIDIA CUDA: \$(nvidia-smi --query-gpu=name --format=csv,noheader)"
+    HAS_CUDA=true
+else
+    echo "[!] Nessuna GPU CUDA rilevata. Esecuzione in modalità CPU pura."
+    HAS_CUDA=false
+fi
+
+# 4. Installazione Ollama
+if ! command -v ollama &> /dev/null; then
+    echo "[!] Ollama non rilevato. Installazione di Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh
+else
+    echo "[✓] Ollama rilevato."
+fi
+
+# 5. Avvio servizio Ollama
+echo "[*] Verifica servizio Ollama..."
+sudo systemctl daemon-reload
+sudo systemctl enable ollama
+sudo systemctl restart ollama
+sleep 3
+
+# 6. Scaricamento modello
+echo "[*] Scaricamento del modello ${recommendedModel}..."
+ollama pull ${recommendedModel}
+
+# 7. Scrittura .env con auto-adattamento
+echo "[*] Creazione file .env..."
+cat << EOF > .env
+PORT=3000
+BACKEND_PORT=3001
+GEMINI_API_KEY=""
+LOCAL_DB_PATH="./data/hub.db"
+ENABLE_TELEMETRY=true
+# Auto-adattamento hardware
+SYSTEM_THREADS=${threadsLimit}
+MODEL_CONTEXT_LENGTH=${contextSize}
+OLLAMA_NUM_GPU=${gpuLayers}
+OLLAMA_BATCH_SIZE=${batchSize}
+EOF
+
+echo "[*] Installazione dipendenze locali..."
+npm install
+
+echo "=== INSTALLAZIONE COMPLETATA CON SUCCESSO! ==="
+echo "Per avviare la piattaforma esegui:"
+echo "npm run dev"
+`;
+
+    const generateWindowsScript = () => `# AI Hub Community Enterprise - Installer Windows PowerShell
+# Progettato da Senior Enterprise Team - Auto-adattivo e Sicuro
+
+Write-Host "=== INIZIO INSTALLAZIONE AI HUB COMMUNITY PER WINDOWS ===" -ForegroundColor Cyan
+Write-Host "Classe Hardware Rilevata: ${hardwareClass}"
+Write-Host "Configurazione Auto-Adattata: CPU Threads: ${threadsLimit}, Modello Consigliato: ${recommendedModel}, Contesto: ${contextSize}"
+
+# 1. Verifica ed esecuzione Policy
+Set-ExecutionPolicy Bypass -Scope Process -Force
+
+# 2. Installazione tramite Winget (Node, Git)
+Write-Host "[*] Verifica pacchetti Node.js e Git tramite Winget..."
+if (!(Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host "[!] Node.js non rilevato. Installazione..."
+    winget install OpenJS.NodeJS -h --accept-source-agreements --accept-package-agreements
+} else {
+    Write-Host "[✓] Node.js rilevato."
+}
+
+if (!(Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host "[!] Git non rilevato. Installazione..."
+    winget install Git.Git -h --accept-source-agreements --accept-package-agreements
+} else {
+    Write-Host "[✓] Git rilevato."
+}
+
+# 3. Scaricamento e Installazione Ollama Windows
+if (!(Get-Command ollama -ErrorAction SilentlyContinue)) {
+    Write-Host "[!] Ollama non rilevato. Scaricamento installer..."
+    $url = "https://ollama.com/download/OllamaSetup.exe"
+    $output = "\$env:TEMP\OllamaSetup.exe"
+    Invoke-WebRequest -Uri $url -OutFile $output
+    Write-Host "[*] Installazione di Ollama in corso..."
+    Start-Process -FilePath $output -Args "/silent" -Wait
+    Write-Host "[✓] Ollama installato."
+} else {
+    Write-Host "[✓] Ollama rilevato."
+}
+
+# 4. Pull modello
+Write-Host "[*] Scaricamento del modello ${recommendedModel}..."
+Start-Process -FilePath "ollama" -ArgumentList "pull ${recommendedModel}" -Wait
+
+# 5. Creazione .env
+Write-Host "[*] Generazione del file .env ottimizzato per il tuo hardware..."
+$envContent = @"
+PORT=3000
+BACKEND_PORT=3001
+GEMINI_API_KEY=""
+LOCAL_DB_PATH="./data/hub.db"
+ENABLE_TELEMETRY=true
+# Parametri di auto-adattamento
+SYSTEM_THREADS=${threadsLimit}
+MODEL_CONTEXT_LENGTH=${contextSize}
+OLLAMA_NUM_GPU=${gpuLayers}
+OLLAMA_BATCH_SIZE=${batchSize}
+"@
+Set-Content -Path ".env" -Value $envContent
+
+# 6. Installazione moduli
+Write-Host "[*] Installazione dipendenze node..."
+npm install
+
+Write-Host "=== INSTALLAZIONE COMPLETATA! ===" -ForegroundColor Green
+Write-Host "Per avviare l'applicazione in locale, esegui il comando: npm run dev"
+`;
+
+    const generateRaspberryScript = () => `#!/bin/bash
+# AI Hub Community Enterprise - Installer Raspberry Pi (ARM64 Optimized)
+# Progettato appositamente per evitare rallentamenti, swap memory estenuanti e blocchi della CPU
+
+echo "=== INIZIO INSTALLAZIONE AI HUB COMMUNITY PER RASPBERRY PI (ARM64) ==="
+echo "Configurazione di Auto-Adattamento Attiva: RAM Limitata, Nessuna GPU, SD Card I/O"
+echo "Configurazione Target: CPU Threads: ${threadsLimit}, Modello Consigliato: ${recommendedModel}, Contesto: ${contextSize}"
+
+# 1. Incremento Swap Space su Raspberry Pi (Cruciale per evitare crash OOM su LLM local)
+echo "[*] Ottimizzazione Swap Memory (Previene il blocco totale del Raspberry)..."
+if [ -f /etc/dphys-swapfile ]; then
+    CURRENT_SWAP=\$(grep "CONF_SWAPSIZE" /etc/dphys-swapfile | cut -d= -f2)
+    if [ -z "\$CURRENT_SWAP" ] || [ "\$CURRENT_SWAP" -lt "2048" ]; then
+        echo "[!] Swap rilevata bassa. Incremento a 2048MB per evitare freeze..."
+        sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/' /etc/dphys-swapfile
+        sudo systemctl restart dphys-swapfile
+        echo "[✓] Swap incrementata con successo."
+    fi
+fi
+
+# 2. Aggiornamento APT
+sudo apt-get update && sudo apt-get upgrade -y
+
+# 3. Node.js ARM64 e Git
+if ! command -v node &> /dev/null; then
+    echo "[!] Installazione Node.js 20 per ARM64..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs git build-essential
+else
+    echo "[✓] Node.js rilevato: \$(node -v)"
+fi
+
+# 4. Installazione Ollama per ARM64
+if ! command -v ollama &> /dev/null; then
+    echo "[*] Installazione Ollama ARM64..."
+    curl -fsSL https://ollama.com/install.sh | sh
+else
+    echo "[✓] Ollama rilevato."
+fi
+
+# 5. Avvio Ollama
+sudo systemctl enable ollama
+sudo systemctl restart ollama
+sleep 3
+
+# 6. Scaricamento modello leggero per Raspberry (es. qwen2.5:0.5b o qwen2.5:1.5b)
+echo "[*] Scaricamento del modello super-leggero ${recommendedModel} (ottimizzato per RAM Raspberry Pi)..."
+ollama pull ${recommendedModel}
+
+# 7. Configurazione .env speciale con limitatori attivi
+echo "[*] Configurazione file .env ottimizzato..."
+cat << EOF > .env
+PORT=3000
+BACKEND_PORT=3001
+GEMINI_API_KEY=""
+LOCAL_DB_PATH="./data/hub.db"
+ENABLE_TELEMETRY=true
+# Parametri di blocco e protezione anti-crash per Raspberry Pi
+SYSTEM_THREADS=${threadsLimit}
+MODEL_CONTEXT_LENGTH=${contextSize}
+OLLAMA_NUM_GPU=0
+OLLAMA_BATCH_SIZE=128
+OLLAMA_NUM_PREDICT=256
+RASPBERRY_MODE=true
+EOF
+
+echo "[*] Installazione dei pacchetti locali..."
+npm install
+
+echo "=== INSTALLAZIONE COMPLETATA PER RASPBERRY PI! ==="
+echo "La piattaforma è stata configurata per limitare l'uso dei thread"
+echo "ed evitare il surriscaldamento e il blocco del Raspberry."
+echo "Avvia il server con: npm run dev"
+`;
+
+    const generateDockerCompose = () => `version: '3.8'
+# AI Hub Community Enterprise - Docker Compose Microservices
+# Auto-adattato per supportare GPU CUDA se presenti nel sistema
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-hub-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Se hai una GPU NVIDIA abilitata, scommenta il blocco sottostante:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+  ai-hub-app:
+    image: node:20-alpine
+    container_name: ai-hub-web-app
+    working_dir: /usr/src/app
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - PORT=3000
+      - BACKEND_PORT=3001
+      - GEMINI_API_KEY=""
+      - LOCAL_DB_PATH=/usr/src/app/data/hub.db
+      - ENABLE_TELEMETRY=true
+      - SYSTEM_THREADS=${threadsLimit}
+      - MODEL_CONTEXT_LENGTH=${contextSize}
+      - OLLAMA_NUM_GPU=${gpuLayers}
+      - OLLAMA_BATCH_SIZE=${batchSize}
+    volumes:
+      - .:/usr/src/app
+      - node_modules:/usr/src/app/node_modules
+    command: npm run dev
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  node_modules:
+`;
+
+    // Map script text based on the requested OS platform
+    let scriptContent = "";
+    let filename = "";
+
+    switch (osPlatform) {
+      case "darwin":
+        scriptContent = generateMacScript();
+        filename = "install_macos.sh";
+        break;
+      case "linux":
+        scriptContent = generateLinuxScript();
+        filename = "install_linux.sh";
+        break;
+      case "win32":
+        scriptContent = generateWindowsScript();
+        filename = "install_windows.ps1";
+        break;
+      case "raspberry":
+        scriptContent = generateRaspberryScript();
+        filename = "install_raspberry.sh";
+        break;
+      case "docker":
+        scriptContent = generateDockerCompose();
+        filename = "docker-compose.yml";
+        break;
+      default:
+        scriptContent = generateLinuxScript();
+        filename = "install_linux.sh";
+    }
+
+    // Write file locally so the user can literally run it in local mode!
+    const localPath = path.join(process.cwd(), filename);
+    fs.writeFileSync(localPath, scriptContent, "utf-8");
+    
+    diagnosticLogs.push(`Installer: Generated ${filename} tailored to Hardware (${ramGB}GB RAM, ${cpuCores} CPU Cores)`);
+
+    res.json({
+      success: true,
+      filename,
+      scriptContent,
+      adaptationProfile: {
+        hardwareClass,
+        recommendedModel,
+        contextSize,
+        threadsLimit,
+        gpuLayers,
+        batchSize
+      },
+      message: `Installer '${filename}' generato con successo e salvato sul disco locale.`
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+

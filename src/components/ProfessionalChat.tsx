@@ -179,6 +179,8 @@ export default function ProfessionalChat({
   // Attachment states in New Chat
   const [formAttachments, setFormAttachments] = useState<{ id: string; name: string; size: string; type: string; progress: number; status: "indexing" | "ready"; version: number; ocrText?: string }[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
+  const [inputDragActive, setInputDragActive] = useState<boolean>(false);
+  const [uploadDropdownOpen, setUploadDropdownOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
 
@@ -333,6 +335,27 @@ export default function ProfessionalChat({
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesUpload(e.dataTransfer.files);
+    }
+  };
+
+  // Handle Drag Events for the Active Chat Input dropzone (batch file ingestion)
+  const handleInputDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setInputDragActive(true);
+    } else if (e.type === "dragleave") {
+      setInputDragActive(false);
+    }
+  };
+
+  const handleInputDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setInputDragActive(false);
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFilesUpload(e.dataTransfer.files);
     }
   };
@@ -1373,7 +1396,6 @@ export default function ProfessionalChat({
                           <FileUp className="w-6 h-6 text-emerald-400 mb-2" />
                           <span className="text-xs text-zinc-400">Carica file o trascina qui</span>
                           <span className="text-[10px] text-zinc-500">Supporta raw, zip, pdf</span>
-                          <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
                         </div>
                         <div
                           onClick={() => dirInputRef.current?.click()}
@@ -1382,7 +1404,6 @@ export default function ProfessionalChat({
                           <FolderPlus className="w-6 h-6 text-amber-400 mb-2" />
                           <span className="text-xs text-zinc-400">Carica un'intera cartella</span>
                           <span className="text-[10px] text-zinc-500">Strutture complesse</span>
-                          <input type="file" multiple {...{webkitdirectory: "true", directory: "true"} as any} ref={dirInputRef} onChange={handleFileSelect} className="hidden" />
                         </div>
                       </div>
                     </div>
@@ -1782,17 +1803,96 @@ export default function ProfessionalChat({
 
               {/* Chat Input form and interrupt action */}
               <form onSubmit={handleSendMessage} className="space-y-2">
-                <div className="relative flex items-center bg-appbg border border-zinc-800 rounded-xl px-3 py-1.5 focus-within:border-emerald-500 transition-all">
+                <div 
+                  onDragEnter={handleInputDrag}
+                  onDragOver={handleInputDrag}
+                  onDragLeave={handleInputDrag}
+                  onDrop={handleInputDrop}
+                  className={`relative flex items-center bg-appbg border rounded-xl px-3 py-1.5 focus-within:border-emerald-500 transition-all ${
+                    inputDragActive ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-zinc-800"
+                  }`}
+                >
+                  {inputDragActive && (
+                    <div className="absolute inset-0 bg-emerald-950/95 border-2 border-dashed border-emerald-400 rounded-xl flex items-center justify-center space-x-2.5 z-30 animate-pulse">
+                      <FileUp className="w-5 h-5 text-emerald-400 animate-bounce" />
+                      <span className="text-xs font-semibold text-emerald-300">Rilascia per caricamento batch (DataTransfer)...</span>
+                    </div>
+                  )}
                   
-                  {/* Plus file upload prompt */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-emerald-400 shrink-0 transition"
-                    title="Aggiungi allegati veloci"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  {/* Plus file upload prompt with rich dropdown for large files/folders */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setUploadDropdownOpen(!uploadDropdownOpen)}
+                      className={`p-1.5 rounded-lg shrink-0 transition ${
+                        uploadDropdownOpen 
+                          ? "bg-zinc-800 text-emerald-400" 
+                          : "text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800"
+                      }`}
+                      title="Carica File o Cartelle"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+
+                    {uploadDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setUploadDropdownOpen(false)} 
+                        />
+                        <div className="absolute bottom-full left-0 mb-2 w-72 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                          <div className="px-2 py-1.5 border-b border-zinc-900 mb-1.5">
+                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">Ingegneria di Caricamento Locale</span>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              fileInputRef.current?.click();
+                              setUploadDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-2.5 p-2 rounded-lg text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-white transition group"
+                          >
+                            <FileUp className="w-4 h-4 text-emerald-400 shrink-0 group-hover:scale-110 transition" />
+                            <div>
+                              <span className="font-semibold block">Carica File Standard</span>
+                              <span className="text-[10px] text-zinc-500 block">PDF, TXT, Raw, Markdown (fino a 50MB)</span>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              fileInputRef.current?.click();
+                              setUploadDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-2.5 p-2 rounded-lg text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-white transition group mt-1"
+                          >
+                            <Cpu className="w-4 h-4 text-sky-400 shrink-0 group-hover:scale-110 transition" />
+                            <div>
+                              <span className="font-semibold block">File Grandi Dimensioni (LOM / BigData)</span>
+                              <span className="text-[10px] text-zinc-500 block">Fino a 500MB con protezione OOM attiva</span>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              dirInputRef.current?.click();
+                              setUploadDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-2.5 p-2 rounded-lg text-left text-xs text-zinc-300 hover:bg-zinc-900 hover:text-white transition group mt-1"
+                          >
+                            <FolderPlus className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition" />
+                            <div>
+                              <span className="font-semibold block">Carica Intera Cartella</span>
+                              <span className="text-[10px] text-zinc-500 block">Scansiona ricorsivamente codice e asset</span>
+                            </div>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   <input
                     type="text"
@@ -1847,6 +1947,9 @@ export default function ProfessionalChat({
 
       </div>
 
+      {/* Hidden inputs always available for upload regardless of setup/chat state */}
+      <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+      <input type="file" multiple {...{webkitdirectory: "true", directory: "true"} as any} ref={dirInputRef} onChange={handleFileSelect} className="hidden" />
     </div>
   );
 }

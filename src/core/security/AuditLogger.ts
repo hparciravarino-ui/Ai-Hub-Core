@@ -16,7 +16,7 @@ export class AuditLogger {
   public static log(event: Omit<AuditEvent, 'id' | 'timestamp'>) {
     const fullEvent: AuditEvent = {
       ...event,
-      id: `audit_\${Date.now()}_\${Math.random().toString(36).substring(7)}`,
+      id: `audit_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       timestamp: new Date().toISOString()
     };
     this.logs.push(fullEvent);

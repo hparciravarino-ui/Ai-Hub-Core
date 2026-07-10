@@ -27,8 +27,14 @@ import {
 } from "lucide-react";
 
 export default function InstallationSetupCenter() {
-  const [activeSubTab, setActiveSubTab] = useState<"wizard" | "services" | "diagnostics" | "backup">("wizard");
+  const [activeSubTab, setActiveSubTab] = useState<"wizard" | "services" | "diagnostics" | "backup" | "os_installer">("wizard");
   const [wizardStep, setWizardStep] = useState<number>(1);
+
+  // OS Installer states
+  const [selectedOs, setSelectedOs] = useState<"darwin" | "linux" | "win32" | "raspberry" | "docker">("darwin");
+  const [installerData, setInstallerData] = useState<any>(null);
+  const [isGeneratingInstaller, setIsGeneratingInstaller] = useState<boolean>(false);
+  const [copiedScript, setCopiedScript] = useState<boolean>(false);
 
   // Auto-detection state
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
@@ -140,6 +146,68 @@ export default function InstallationSetupCenter() {
       console.warn("Could not fetch diagnostics", e);
     }
   };
+
+  const generateInstallerScript = async (osPlatform: string) => {
+    setIsGeneratingInstaller(true);
+    setCopiedScript(false);
+    try {
+      const ramGB = systemInfo?.hardware?.ram || 8;
+      const cpuCores = systemInfo?.hardware?.cores || 4;
+      const threads = systemInfo?.hardware?.threads || 8;
+      const hasGpu = systemInfo?.hardware?.gpu && 
+        !systemInfo.hardware.gpu.toLowerCase().includes("software") && 
+        !systemInfo.hardware.gpu.toLowerCase().includes("integrated");
+
+      const res = await fetch("/api/setup/installer/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          osPlatform,
+          ramGB,
+          cpuCores,
+          threads,
+          hasGpu: !!hasGpu
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setInstallerData(data);
+      }
+    } catch (e) {
+      console.error("Could not generate installer script", e);
+    } finally {
+      setIsGeneratingInstaller(false);
+    }
+  };
+
+  const handleCopyScript = () => {
+    if (installerData?.scriptContent) {
+      navigator.clipboard.writeText(installerData.scriptContent);
+      setCopiedScript(true);
+      setTimeout(() => setCopiedScript(false), 2000);
+    }
+  };
+
+  const handleDownloadScript = () => {
+    if (installerData?.scriptContent && installerData?.filename) {
+      const blob = new Blob([installerData.scriptContent], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = installerData.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  useEffect(() => {
+    if (systemInfo) {
+      generateInstallerScript(selectedOs);
+    }
+  }, [selectedOs, systemInfo]);
 
   useEffect(() => {
     runAutoDetection();
@@ -397,6 +465,14 @@ export default function InstallationSetupCenter() {
           }`}
         >
           Backup & Ripristino
+        </button>
+        <button
+          onClick={() => setActiveSubTab("os_installer")}
+          className={`px-4 py-2 rounded-md text-xs font-semibold transition ${
+            activeSubTab === "os_installer" ? "bg-zinc-850 text-indigo-400 font-bold border border-zinc-700" : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Installer OS & Auto-Adattamento
         </button>
       </div>
 
@@ -1257,6 +1333,188 @@ export default function InstallationSetupCenter() {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === "os_installer" && (
+        <div className="space-y-6" id="os-installer-tab-view">
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                <Terminal className="w-5 h-5 text-indigo-400" />
+                <span>Installer OS & Auto-Adattamento Hardware</span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Genera ed esegui script di installazione dedicati per la tua macchina. Il sistema analizza l'hardware corrente e si adatta per prevenire rallentamenti, blocchi e crash OOM.
+              </p>
+            </div>
+
+            {/* Hardware Profile Summary */}
+            {systemInfo && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 p-4 bg-zinc-950/40 border border-zinc-850 rounded-xl">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase">Hardware Rilevato</span>
+                  <p className="text-xs font-bold text-white truncate">{systemInfo.hardware.cpu}</p>
+                  <p className="text-[11px] text-zinc-400 font-mono">{systemInfo.hardware.ram} GB RAM / {systemInfo.hardware.cores} Cores</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase">Classe di Prestazione</span>
+                  <p className="text-xs font-bold text-indigo-400">
+                    {installerData?.adaptationProfile?.hardwareClass || "Calcolo in corso..."}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 font-mono">Profilo auto-adattivo</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase">Threads di Sicurezza CPU</span>
+                  <p className="text-xs font-bold text-emerald-400">
+                    {installerData?.adaptationProfile?.threadsLimit || "Auto"} Threads max
+                  </p>
+                  <p className="text-[11px] text-zinc-400 font-mono">Conserva 1-2 core liberi</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase">Modello Locale Ottimizzato</span>
+                  <p className="text-xs font-bold text-purple-400 truncate" title={installerData?.adaptationProfile?.recommendedModel}>
+                    {installerData?.adaptationProfile?.recommendedModel || "Ollama standard"}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 font-mono">Contesto: {installerData?.adaptationProfile?.contextSize || 4096} tokens</p>
+                </div>
+              </div>
+            )}
+
+            {/* OS Selector Tabs */}
+            <div className="space-y-4">
+              <div className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wide">Seleziona Sistema Operativo di Destinazione:</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {[
+                  { id: "darwin", label: "macOS", icon: Cpu, desc: "Apple Silicon & Intel" },
+                  { id: "linux", label: "Linux", icon: Server, desc: "Ubuntu / Debian / CentOS" },
+                  { id: "win32", label: "Windows", icon: Settings, desc: "PowerShell Winget" },
+                  { id: "raspberry", label: "Raspberry Pi", icon: Flame, desc: "ARM64 Headless Low-RAM" },
+                  { id: "docker", label: "Docker Compose", icon: Network, desc: "Multi-container Stack" }
+                ].map((os) => (
+                  <button
+                    key={os.id}
+                    onClick={() => setSelectedOs(os.id as any)}
+                    className={`p-3 rounded-lg border text-left transition duration-200 flex flex-col justify-between h-20 ${
+                      selectedOs === os.id
+                        ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-400"
+                        : "bg-zinc-950/40 border-zinc-850 text-zinc-400 hover:border-zinc-800 hover:text-zinc-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <os.icon className="w-4 h-4" />
+                      {selectedOs === os.id && <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold">{os.label}</div>
+                      <div className="text-[9px] text-zinc-500 truncate max-w-full font-mono">{os.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Config details & Script viewport */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left explanation and safety guide */}
+              <div className="lg:col-span-1 space-y-4">
+                <div className="bg-zinc-950/40 p-5 border border-zinc-850 rounded-xl space-y-4">
+                  <h4 className="text-xs font-mono font-bold text-zinc-300 uppercase tracking-wide flex items-center space-x-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Ingegneria di Protezione Attiva</span>
+                  </h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    A differenza delle installazioni standard dei modelli AI che saturano la CPU bloccando il mouse e la tastiera, il nostro motore applica limitatori dinamici:
+                  </p>
+                  
+                  <div className="space-y-3 font-mono text-[11px] text-zinc-300">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-emerald-400 shrink-0">✔</span>
+                      <div>
+                        <span className="font-bold text-zinc-200">Prevenzione Freeze:</span>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Assegna un massimo di {installerData?.adaptationProfile?.threadsLimit || 3} thread alla CPU, lasciando core liberi per l'OS.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-emerald-400 shrink-0">✔</span>
+                      <div>
+                        <span className="font-bold text-zinc-200">Scale-to-Zero Attivo:</span>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Il server LLM locale si spegne automaticamente in caso di inattività per liberare RAM.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-emerald-400 shrink-0">✔</span>
+                      <div>
+                        <span className="font-bold text-zinc-200">Limitatore Context Window:</span>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Fissato a {installerData?.adaptationProfile?.contextSize || 4096} tokens per impedire lo sforzo eccessivo dei dischi a stato solido.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-zinc-850 pt-3">
+                    <span className="text-[10px] font-mono text-zinc-500 block uppercase mb-1">Come eseguire in locale</span>
+                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                      {selectedOs === "darwin" && "Scarica lo script ed esegui: chmod +x install_macos.sh && ./install_macos.sh"}
+                      {selectedOs === "linux" && "Scarica lo script ed esegui: chmod +x install_linux.sh && ./install_linux.sh"}
+                      {selectedOs === "win32" && "Esegui in PowerShell come Amministratore: .\\install_windows.ps1"}
+                      {selectedOs === "raspberry" && "Esegui sul terminale del Raspberry Pi: chmod +x install_raspberry.sh && ./install_raspberry.sh"}
+                      {selectedOs === "docker" && "Salva come docker-compose.yml ed esegui: docker compose up -d"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right generated installer console script */}
+              <div className="lg:col-span-2 space-y-3">
+                <div className="bg-black border border-zinc-800 rounded-xl p-4 font-mono text-xs flex flex-col justify-between h-full min-h-[380px]">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-zinc-850 pb-2.5 mb-3 text-zinc-500">
+                      <div className="flex items-center space-x-2">
+                        <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-zinc-300 font-bold">{installerData?.filename || "In attesa..."}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={handleCopyScript}
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 px-2.5 py-1 rounded text-[10px] transition flex items-center space-x-1 font-bold"
+                        >
+                          <FileText className="w-3 h-3 text-zinc-400" />
+                          <span>{copiedScript ? "Copiato!" : "Copia script"}</span>
+                        </button>
+                        <button
+                          onClick={handleDownloadScript}
+                          className="bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-900/60 text-indigo-400 px-2.5 py-1 rounded text-[10px] transition flex items-center space-x-1 font-bold"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Scarica</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {isGeneratingInstaller ? (
+                      <div className="h-64 flex flex-col items-center justify-center space-y-2 text-zinc-500">
+                        <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
+                        <p className="text-[11px]">Generazione dello script in tempo reale...</p>
+                      </div>
+                    ) : (
+                      <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[11px] overflow-y-auto max-h-[350px] custom-scrollbar bg-zinc-950 p-3 rounded border border-zinc-900">
+                        {installerData?.scriptContent || "Generazione in corso..."}
+                      </pre>
+                    )}
+                  </div>
+
+                  <div className="border-t border-zinc-900 pt-3 mt-4 flex items-center justify-between text-[10px] text-zinc-500">
+                    <span className="flex items-center space-x-1 text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse mr-1"></span>
+                      Pronto all'uso
+                    </span>
+                    <span>Generato con logica auto-adattiva</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

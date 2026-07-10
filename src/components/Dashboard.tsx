@@ -26,6 +26,7 @@ interface DashboardProps {
   selectedProfileId: PerformanceProfileId;
   onProfileChange: (profileId: PerformanceProfileId) => void;
   installedModelsCount: number;
+  setActiveTab?: (tab: string) => void;
 }
 
 const SortableWidget = ({ id, title, icon: Icon, children }: { id: string, title: string, icon: any, children: React.ReactNode }) => {
@@ -65,6 +66,7 @@ export default function Dashboard({
   selectedProfileId,
   onProfileChange,
   installedModelsCount,
+  setActiveTab,
 }: DashboardProps) {
   const [metrics, setMetrics] = useState({ cpu: 0, gpu: 0, ram: 0, vram: 0, temp: 0, tokensPerSec: 0, latency: 0 });
   const [history, setHistory] = useState<any[]>([]);
@@ -254,7 +256,10 @@ export default function Dashboard({
       title: "Professional Chat", icon: MessageSquare,
       render: () => (
         <div className="flex flex-col h-full justify-center">
-          <button className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold rounded-md transition-colors shadow flex items-center justify-center space-x-2">
+          <button 
+            onClick={() => setActiveTab?.("chat")}
+            className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold rounded-md transition-colors shadow flex items-center justify-center space-x-2"
+          >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Avvia Sessione</span>
           </button>
