@@ -1,5 +1,9 @@
 import { Router } from "express";
 import os from "os";
+import si from "systeminformation";
+import { exec } from "child_process";
+import util from "util";
+const execPromise = util.promisify(exec);
 import fs from "fs";
 import path from "path";
 import dns from "dns";
@@ -179,91 +183,137 @@ installationRouter.post("/env/create", (req, res) => {
 });
 
 // 3. DEPENDENCIES VERIFICATION & REPAIR
+
+
 installationRouter.post("/dependencies/repair", async (req, res) => {
   try {
     diagnosticLogs.push("Wrench: Repair operation triggered by User.");
-    diagnosticLogs.push("Wrench: Checking node_modules integrity...");
-    diagnosticLogs.push("Wrench: Re-indexing packages listed in package.json...");
+    diagnosticLogs.push("Wrench: Running npm install to verify and repair dependencies...");
     
-    // Simulate package list parsing
+    try {
+      const { stdout, stderr } = await execPromise("npm install", { cwd: process.cwd() });
+      diagnosticLogs.push("Wrench: npm install output:");
+      diagnosticLogs.push(stdout.substring(0, 500) + (stdout.length > 500 ? "..." : ""));
+    } catch(err) {
+      diagnosticLogs.push("Wrench Error: " + err.message);
+      return res.status(500).json({ error: "Failed to repair dependencies", logs: diagnosticLogs });
+    }
+
     const packageJsonPath = path.join(process.cwd(), "package.json");
     const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
     const deps = Object.keys(pkg.dependencies || {});
     const devDeps = Object.keys(pkg.devDependencies || {});
     
-    diagnosticLogs.push(`Wrench: Found ${deps.length} dependencies and ${devDeps.length} devDependencies.`);
-    diagnosticLogs.push("Wrench: Packages verified successfully. No corruptions found.");
+    diagnosticLogs.push(`Wrench: Verified ${deps.length} dependencies and ${devDeps.length} devDependencies.`);
     
     res.json({
       success: true,
       verifiedCount: deps.length + devDeps.length,
-      logs: [
-        "Verifying files integrity...",
-        "Cleaning local lock cache...",
-        "Resolving peer conflicts...",
-        "Repair completed. All packages are verified and stable."
-      ]
+      logs: diagnosticLogs.slice(-10)
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+
 // 4. SERVICES MANAGEMENT
-installationRouter.get("/services", (req, res) => {
-  res.json(serviceStates);
+installationRouter.get("/services", async (req, res) => {
+  const os = require('os');
+  
+  // Actually check port 11434 for local_llm
+  let isOllamaRunning = false;
+  try {
+    const net = require('net');
+    isOllamaRunning = await new Promise((resolve) => {
+      const server = net.createServer();
+      server.once('error', (err) => resolve(err.code !== 'EADDRINUSE'));
+      server.once('listening', () => {
+        server.close();
+        resolve(true); // Port is free, meaning not running
+      });
+      server.listen(11434);
+    }).then(isFree => !isFree);
+  } catch(e) {}
+
+  const realServiceStates = {
+    app_server: { 
+      status: "Active", 
+      pid: process.pid, 
+      uptime: Math.floor(process.uptime()), 
+      port: process.env.PORT || 3000, 
+      logs: ["Main full-stack application running"] 
+    },
+    local_llm: { 
+      status: isOllamaRunning ? "Active" : "Inactive", 
+      pid: isOllamaRunning ? "Unknown" : null, 
+      uptime: 0, 
+      port: 11434, 
+      logs: isOllamaRunning ? ["Local LLM is running on host"] : ["Ollama/Llama.cpp local server inactive", "Install and run externally"] 
+    },
+  };
+  res.json(realServiceStates);
 });
 
 installationRouter.post("/services/control", (req, res) => {
-  const { service, action } = req.body; // e.g., "frontend", "start" | "stop" | "restart"
-  
-  if (!serviceStates[service as keyof typeof serviceStates]) {
-    return res.status(400).json({ error: `Service '${service}' not found.` });
+  const { service, action } = req.body;
+  if (service === "app_server") {
+    return res.status(400).json({ error: "Cannot stop the main app server from within itself." });
   }
-
-  const s = serviceStates[service as keyof typeof serviceStates];
-
-  if (action === "start") {
-    s.status = "Active";
-    s.pid = Math.floor(Math.random() * 8000) + 1000;
-    s.uptime = 0;
-    s.logs.push(`[${new Date().toLocaleTimeString()}] Service started manually.`);
-    diagnosticLogs.push(`Services: Started service '${service}' (PID: ${s.pid})`);
-  } else if (action === "stop") {
-    s.status = "Inactive";
-    s.pid = null;
-    s.uptime = 0;
-    s.logs.push(`[${new Date().toLocaleTimeString()}] Service stopped manually.`);
-    diagnosticLogs.push(`Services: Stopped service '${service}'`);
-  } else if (action === "restart") {
-    s.status = "Active";
-    s.pid = Math.floor(Math.random() * 8000) + 1000;
-    s.uptime = 0;
-    s.logs.push(`[${new Date().toLocaleTimeString()}] Service restarted manually.`);
-    diagnosticLogs.push(`Services: Restarted service '${service}'`);
-  }
-
-  res.json({ success: true, service: s });
+  return res.status(400).json({ error: `Cannot control external service '${service}' from this sandbox.` });
 });
 
 // 5. DIAGNOSTICS & HEALTH CHECK
-installationRouter.get("/diagnostics", (req, res) => {
-  // Generate automated test results
-  const tests = [
-    { name: "Node.js Version Compliance", status: "Passed", details: "v18.x or above verified" },
-    { name: "Local Disk Space Allocation", status: "Passed", details: "> 20GB free space verified" },
-    { name: "Write Permissions Sandbox", status: "Passed", details: "Current user has full RW capabilities" },
-    { name: "Internet Network Latency", status: "Passed", details: "Ping to DNS server: < 20ms" },
-    { name: "Database Schema Sync Check", status: "Passed", details: "Drizzle migrations verified" },
-    { name: "Port 3000 Collision Test", status: "Passed", details: "No active collision" },
-  ];
+installationRouter.get("/diagnostics", async (req, res) => {
+  try {
+    
+    const tests = [];
+    
+    // Node.js Version Compliance
+    const nodeVersion = process.version;
+    const isNodeValid = parseInt(nodeVersion.replace('v', '').split('.')[0]) >= 18;
+    tests.push({ name: "Node.js Version Compliance", status: isNodeValid ? "Passed" : "Failed", details: `${nodeVersion} verified` });
 
-  res.json({
-    tests,
-    logs: diagnosticLogs,
-    warningCount: 0,
-    errorCount: 0,
-  });
+    // Local Disk Space Allocation
+    let isDiskValid = true;
+    let diskDetails = "Verified";
+    try {
+      
+      const fsSize = await si.fsSize();
+      const freeStorage = fsSize.reduce((acc, curr) => acc + curr.available, 0);
+      const freeGB = Math.round(freeStorage / (1024 * 1024 * 1024));
+      isDiskValid = freeGB > 20;
+      diskDetails = `> ${freeGB}GB free space verified`;
+    } catch(e) {
+      diskDetails = "Skipped check";
+    }
+    tests.push({ name: "Local Disk Space Allocation", status: isDiskValid ? "Passed" : "Warning", details: diskDetails });
+
+    // Write Permissions Sandbox
+    let hasWritePermission = false;
+    try {
+      fs.accessSync(process.cwd(), fs.constants.R_OK | fs.constants.W_OK);
+      hasWritePermission = true;
+    } catch (e) {
+      hasWritePermission = false;
+    }
+    tests.push({ name: "Write Permissions Sandbox", status: hasWritePermission ? "Passed" : "Failed", details: hasWritePermission ? "Current user has full RW capabilities" : "No write access" });
+
+    // DB test
+    tests.push({ name: "Database Schema Sync Check", status: "Warning", details: "Drizzle migrations checking not strictly required for local storage" });
+
+    // Port 3000 Collision Test
+    tests.push({ name: "Port 3000 Collision Test", status: "Passed", details: "Currently running on this port" });
+
+    res.json({
+      tests,
+      logs: diagnosticLogs.slice(-10),
+      warningCount: tests.filter(t => t.status === "Warning").length,
+      errorCount: tests.filter(t => t.status === "Failed").length,
+    });
+  } catch(error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 installationRouter.post("/diagnostics/run-test", (req, res) => {

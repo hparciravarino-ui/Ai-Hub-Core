@@ -39,9 +39,10 @@ export default function EnterpriseModelDashboard({ models }: Props) {
         setInstalling(null);
         alert(`Model ${model.name} installed successfully!`);
       }, 3000);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       setInstalling(null);
+      alert(e.message || "Errore durante l'installazione del modello.");
     }
   };
 

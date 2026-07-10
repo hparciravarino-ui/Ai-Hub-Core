@@ -1,3 +1,4 @@
+import { ModelService } from "../core/services/ModelService";
 import { useState, useEffect } from 'react';
 import { HardwareProfile, Model, Plugin, AuditLog, PerformanceProfileId, FileEntry } from '../types';
 import { MODEL_CATALOG, PLUGINS_LIST, SECURITY_LOGS, PERFORMANCE_PROFILES } from '../data';
@@ -91,57 +92,21 @@ export function useAppState() {
     addAuditLog("System", `Profilo operativo cambiato in: ${profileName}`, "Success");
   };
 
-  const handleDownloadModel = (modelId: string) => {
-    setModels((prevModels) =>
-      prevModels.map((m) => {
-        if (m.id === modelId) {
-          addAuditLog("System", `Avviato download del modello '${m.name}'`, "Success");
-          
-          if (downloadSpeed === "instant") {
-            setTimeout(() => {
-              setModels((currModels) =>
-                currModels.map((currM) => {
-                  if (currM.id === modelId) {
-                    addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
-                    addAuditLog("Security", `Firma digitale validata locale per '${currM.name}'`, "Success");
-                    addAuditLog("System", `Modello '${currM.name}' installato istantaneamente`, "Success");
-                    return { ...currM, downloadProgress: 100, isDownloading: false, downloaded: true };
-                  }
-                  return currM;
-                })
-              );
-            }, 300);
-            return { ...m, isDownloading: true, downloadProgress: 0 };
-          }
-
-          const delay = downloadSpeed === "turbo" ? 350 : 850;
-          const stepSizeMin = downloadSpeed === "turbo" ? 20 : 10;
-          const stepSizeMax = downloadSpeed === "turbo" ? 30 : 15;
-
-          const interval = setInterval(() => {
-            setModels((currModels) =>
-              currModels.map((currM) => {
-                if (currM.id === modelId) {
-                  const nextProgress = currM.downloadProgress + Math.floor(Math.random() * stepSizeMax) + stepSizeMin;
-                  if (nextProgress >= 100) {
-                    clearInterval(interval);
-                    addAuditLog("Security", `Verifica hash SHA256 completata con successo per '${currM.name}'`, "Success");
-                    addAuditLog("Security", `Firma digitale Meta/DeepSeek validata locale per '${currM.name}'`, "Success");
-                    addAuditLog("System", `Modello '${currM.name}' installato in RAM/SSD locale`, "Success");
-                    return { ...currM, downloadProgress: 100, isDownloading: false, downloaded: true };
-                  }
-                  return { ...currM, downloadProgress: nextProgress };
-                }
-                return currM;
-              })
-            );
-          }, delay);
-
-          return { ...m, isDownloading: true, downloadProgress: 0 };
-        }
-        return m;
-      })
-    );
+  const handleDownloadModel = async (modelId: string) => {
+    const model = models.find(m => m.id === modelId);
+    if (!model) return;
+    try {
+      addAuditLog("System", `Richiesta di installazione del modello '${model.name}'`, "Success");
+      await ModelService.installModel(model);
+      setModels((prevModels) =>
+        prevModels.map((m) => m.id === modelId ? { ...m, downloaded: true } : m)
+      );
+      alert(`Modello ${model.name} installato con successo!`);
+    } catch (e: any) {
+      console.error(e);
+      addAuditLog("System", `Errore installazione: ${e.message}`, "Warning");
+      alert(`Impossibile installare ${model.name}: ${e.message}`);
+    }
   };
 
   const handleDeleteModel = (modelId: string) => {

@@ -11,7 +11,7 @@ export class GeminiService implements IAIService {
         console.warn("WARNING: GEMINI_API_KEY is not defined. Falling back to robust offline embeddings and completions.");
       }
       this.aiInstance = new GoogleGenAI({
-        apiKey: apiKey || "MOCK_KEY",
+        apiKey: apiKey,
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
@@ -24,7 +24,7 @@ export class GeminiService implements IAIService {
 
   public async generateEmbedding(text: string): Promise<number[]> {
     if (!process.env.GEMINI_API_KEY) {
-      return this.generateMockEmbedding(text, 1536);
+      throw new Error("Chiave GEMINI_API_KEY non configurata sul server (variabile d'ambiente mancante).");
     }
     try {
       const ai = this.getAI();
@@ -41,14 +41,14 @@ export class GeminiService implements IAIService {
       }
       return this.generateMockEmbedding(text, 1536);
     } catch (e: any) {
-      console.error("Error generating Gemini embedding, falling back to mock:", e.message);
-      return this.generateMockEmbedding(text, 1536);
+      console.error("Error generating Gemini embedding:", e.message);
+      throw e;
     }
   }
 
   public async generateText(prompt: string, systemInstruction?: string): Promise<string> {
     if (!process.env.GEMINI_API_KEY) {
-      return `[MOCK AI ANSWER] (Set GEMINI_API_KEY in Settings > Secrets to enable real Gemini 3.5 responses)\n\nProcessed query: "${prompt}"`;
+      throw new Error("Chiave GEMINI_API_KEY non configurata sul server (variabile d'ambiente mancante).");
     }
     try {
       const ai = this.getAI();
@@ -60,7 +60,7 @@ export class GeminiService implements IAIService {
       return response.text || "";
     } catch (e: any) {
       console.error("Error calling Gemini generateContent:", e.message);
-      return `[GEMINI ERROR] ${e.message}`;
+      throw e;
     }
   }
 

@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import path from "path";
 import cors from "cors";
@@ -21,15 +23,7 @@ async function startServer() {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 1000, // limit each IP to 1000 requests per windowMs for enterprise internal tooling
-    message: "Too many requests from this IP, please try again later.",
-    keyGenerator: (req) => {
-      const forwarded = req.headers['forwarded'];
-      const xForwardedFor = req.headers['x-forwarded-for'];
-      return (typeof forwarded === 'string' ? forwarded.split(',')[0] : null) || 
-             (typeof xForwardedFor === 'string' ? xForwardedFor.split(',')[0] : null) || 
-             req.ip || 
-             'unknown';
-    }
+    message: "Too many requests from this IP, please try again later."
   });
   app.use("/api", limiter);
   

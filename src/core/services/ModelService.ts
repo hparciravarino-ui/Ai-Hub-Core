@@ -5,7 +5,10 @@ export class ModelService {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(modelData)
     });
-    if (!res.ok) throw new Error("Failed to install model");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to install model");
+    }
     return res.json();
   }
 
