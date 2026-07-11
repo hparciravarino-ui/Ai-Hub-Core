@@ -1,12 +1,12 @@
 import { IVectorDatabase } from './IVectorDatabase';
-import { LocalVectorDatabase } from './LocalVectorDatabase';
+import { SqliteVectorDatabase } from './SqliteVectorDatabase';
 
 export class VectorManager {
   private static instance: IVectorDatabase;
 
   public static getInstance(): IVectorDatabase {
     if (!this.instance) {
-      this.instance = new LocalVectorDatabase();
+      this.instance = new SqliteVectorDatabase();
       this.instance.connect();
     }
     return this.instance;

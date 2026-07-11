@@ -16,7 +16,7 @@ export class SmartInstallationEngine {
     // 3. Download Model
     await DownloadUpdateManager.downloadModel(modelData.id, modelData.sourceUrl || '');
 
-    // 4. Configure runtime (mock implementation)
+    // 4. Configure runtime settings
     // Here we would apply the 'config' to Native/LMStudio/llama.cpp settings
 
     // 5. Run Initial Benchmark

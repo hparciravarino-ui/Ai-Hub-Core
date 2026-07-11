@@ -1,0 +1,3 @@
+id,timestamp,modelId,provider,status,timeToFirstTokenMs,tokensPerSecond,cpuOpsPerSec,ramSpeedMBs,diskSpeedMBs,vectorsPerSec
+1783752751484,2026-07-11T06:52:31.484Z,gemini-1.5-flash,api,completed,273,74.63,29265572,831.76,821.86,18282
+1783752777224,2026-07-11T06:52:57.224Z,llama3-8b,native,completed,10,83.17,25576223,813.01,874.4,16806

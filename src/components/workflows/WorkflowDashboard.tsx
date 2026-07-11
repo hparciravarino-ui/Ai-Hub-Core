@@ -16,7 +16,7 @@ export default function WorkflowDashboard() {
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
 
   // Workflow structure setup
-  const mockWorkflow = {
+  const exampleWorkflow = {
     id: "wf_1",
     name: "Autonomous RAG & Code Synthesis Pipeline",
     description: "Orchestrates knowledge search, context interpolation, code-architect review, and safety logs validation.",
@@ -56,7 +56,7 @@ export default function WorkflowDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          workflow: mockWorkflow, 
+          workflow: exampleWorkflow, 
           input: { 
             timestamp: new Date().toISOString(),
             author: 'Chief AI Architect'
@@ -90,7 +90,7 @@ export default function WorkflowDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          workflowId: mockWorkflow.id, 
+          workflowId: exampleWorkflow.id, 
           checkpointId 
         })
       });

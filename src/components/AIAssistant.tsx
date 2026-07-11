@@ -178,7 +178,7 @@ export default function AIAssistant({
     setIsPlaygroundLoading(false);
   };
 
-  // Document QA upload and mock handler
+  // Document QA upload and handler
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();

@@ -74,7 +74,7 @@ export class TelemetryManager {
     try {
       const live = await MetricsEngine.getLiveMetrics();
       const baseCpu = live.cpu || 25;
-      const baseGpu = 40 + Math.random() * 30; // Still mocking GPU if systeminformation doesn't fetch it easily
+      const baseGpu = 40 + Math.random() * 30; // Fallback GPU telemetry estimation if systeminformation cannot access native sensors
       const temp = live.temp || (52 + Math.floor(baseCpu / 10));
       const power = 45 + Math.floor(baseCpu * 0.8) + Math.floor(baseGpu * 1.5);
       

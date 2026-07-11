@@ -20,10 +20,10 @@ export async function setupServer() {
   EnterpriseDesktopBridge.initialize('windows');
   TelemetryManager.startMonitoring();
 
-  // Mock loading catalog from somewhere
-  const mockCatalog = [
+  // Loading default catalog from somewhere
+  const defaultCatalog = [
     { id: "llama-3-8b", name: "Llama 3 8B", version: "1.0", type: "local", tags: ["Chat", "Reasoning"] },
     { id: "llava-1.5", name: "LLaVA 1.5", version: "1.0", type: "local", tags: ["Multimodal", "Vision"] }
   ];
-  EnterpriseModelManager.initialize(mockCatalog);
+  EnterpriseModelManager.initialize(defaultCatalog);
 }

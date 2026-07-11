@@ -29,6 +29,25 @@ export class RAGService {
   public static async initialize() {
     const db = VectorManager.getInstance();
     await db.createCollection(this.COLLECTION_NAME);
+    
+    // Restore file registry from persistent DB
+    if (db.getRegistry) {
+      const dbRegistry = db.getRegistry(this.COLLECTION_NAME);
+      for (const row of dbRegistry) {
+        this.fileRegistry.set(row.filename, {
+          filename: row.filename,
+          language: 'unknown',
+          detectedType: 'document',
+          wordCount: 0,
+          charCount: 0,
+          hash: row.hash,
+          timestamp: row.timestamp,
+          author: 'system',
+          chunksCount: row.chunksCount,
+          version: row.version
+        });
+      }
+    }
   }
 
   public static async ingestDocument(fileBuffer: ArrayBuffer, mimeType: string, filename: string, author: string = 'system') {
@@ -59,9 +78,8 @@ export class RAGService {
     const db = VectorManager.getInstance();
     
     // If updating, delete previous embeddings of this file
-    if (existing) {
-      // In a physical DB, we would filter-delete. For our Vector layer, we'll keep it simple or do a collection refresh.
-      // For now, we will append and track the latest version in metadata.
+    if (existing && db.deleteBySource) {
+      db.deleteBySource(this.COLLECTION_NAME, filename);
     }
 
     const vectorDocs = chunks.map((chunk, i) => ({

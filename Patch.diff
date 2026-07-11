@@ -1,0 +1,81 @@
+--- src/core/vector/IVectorDatabase.ts
++++ src/core/vector/IVectorDatabase.ts
+@@ -21,5 +21,7 @@
+   restoreSnapshot(collection: string, snapshotId: string): Promise<void>;
+   migrateCollection(sourceCollection: string, targetCollection: string): Promise<void>;
+   clearCache(): void;
++  deleteBySource?(collection: string, source: string): void;
++  getRegistry?(collection: string): any[];
+ }
+ 
+--- src/core/vector/SqliteVectorDatabase.ts (NEW)
++++ src/core/vector/SqliteVectorDatabase.ts
+@@ -0,0 +1,160 @@
++import path from 'path';
++import Database from 'better-sqlite3';
++import { IVectorDatabase, VectorEmbedding } from './IVectorDatabase';
++import fs from 'fs';
++...
+
+--- src/core/vector/VectorManager.ts
++++ src/core/vector/VectorManager.ts
+@@ -1,13 +1,13 @@
+ import { IVectorDatabase } from './IVectorDatabase';
+-import { LocalVectorDatabase } from './LocalVectorDatabase';
++import { SqliteVectorDatabase } from './SqliteVectorDatabase';
+ 
+ export class VectorManager {
+   private static instance: IVectorDatabase;
+ 
+   public static getInstance(): IVectorDatabase {
+     if (!this.instance) {
+-      this.instance = new LocalVectorDatabase();
++      this.instance = new SqliteVectorDatabase();
+       this.instance.connect();
+     }
+     return this.instance;
+   }
+
+--- src/core/knowledge/RAGService.ts
++++ src/core/knowledge/RAGService.ts
+@@ -27,7 +27,24 @@
+   public static async initialize() {
+     const db = VectorManager.getInstance();
+     await db.createCollection(this.COLLECTION_NAME);
++    
++    // Restore file registry from persistent DB
++    if (db.getRegistry) {
++      const dbRegistry = db.getRegistry(this.COLLECTION_NAME);
++      for (const row of dbRegistry) {
++        this.fileRegistry.set(row.filename, { ... });
++      }
++    }
+   }
+...
+     // If updating, delete previous embeddings of this file
+-    if (existing) {
+-      // In a physical DB, we would filter-delete. For our Vector layer, we'll keep it simple or do a collection refresh.
+-      // For now, we will append and track the latest version in metadata.
+-    }
++    if (existing && db.deleteBySource) {
++      db.deleteBySource(this.COLLECTION_NAME, filename);
++    }
+
+--- src/core/knowledge/ChunkingStrategy.ts
++++ src/core/knowledge/ChunkingStrategy.ts
+@@ -1,12 +1,54 @@
+ export class ChunkingStrategy {
++  /**
++   * Intelligently chunks text by paragraphs and sentences to preserve semantic context,
++   * falling back to fixed-size chunking only when necessary.
++   */
+   public static chunkText(text: string, maxChunkSize: number = 1000, overlap: number = 200): string[] {
+-    let currentIndex = 0;
+-    while (currentIndex < text.length) {
+-      const chunk = text.substring(currentIndex, currentIndex + maxChunkSize);
+-      chunks.push(chunk);
+-      currentIndex += maxChunkSize - overlap;
+-    }
++    // Split by paragraphs first
++    const paragraphs = text.split(/\n\s*\n/);
++    ...

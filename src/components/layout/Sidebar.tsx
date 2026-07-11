@@ -57,7 +57,6 @@ export function Sidebar({ activeTab, setActiveTab, downloadedModelsCount }: Side
     { id: 'plugins', label: 'Plugin Estensioni', icon: Blocks, category: 'Strumenti', color: 'text-zinc-400', shortcut: '⌘P' },
     { id: 'security', label: 'Sicurezza & Privacy', icon: ShieldCheck, category: 'Strumenti', color: 'text-zinc-400', shortcut: '⌘K' },
     { id: 'filemanager', label: 'File & Storage IO', icon: Folder, category: 'Strumenti', color: 'text-emerald-500', shortcut: '⌘F' },
-    { id: 'analyzer', label: 'Analisi Progetto', icon: Folder, category: 'Strumenti', color: 'text-emerald-400', badge: 'AI', shortcut: '⌘J' },
     { id: 'media', label: 'Media Lab', icon: Wand2, category: 'Strumenti', color: 'text-amber-400', shortcut: '⌘L' },
     { id: 'guide', label: 'Guida all\'Uso', icon: BookOpen, category: 'Strumenti', color: 'text-violet-400', shortcut: '⌘H' },
   ];
@@ -97,7 +96,7 @@ export function Sidebar({ activeTab, setActiveTab, downloadedModelsCount }: Side
       accentBg: 'bg-amber-950/10',
       borderColor: 'border-amber-500/20',
       hoverBg: 'hover:bg-amber-500/5',
-      itemIds: ['rag', 'agents', 'workflows', 'scheduler', 'plugins', 'security', 'filemanager', 'analyzer', 'media']
+      itemIds: ['rag', 'agents', 'workflows', 'scheduler', 'plugins', 'security', 'filemanager', 'media']
     }
   ];
 

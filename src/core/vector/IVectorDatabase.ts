@@ -22,4 +22,6 @@ export interface IVectorDatabase {
   restoreSnapshot(collection: string, snapshotId: string): Promise<void>;
   migrateCollection(sourceCollection: string, targetCollection: string): Promise<void>;
   clearCache(): void;
+  deleteBySource?(collection: string, source: string): void;
+  getRegistry?(collection: string): any[];
 }

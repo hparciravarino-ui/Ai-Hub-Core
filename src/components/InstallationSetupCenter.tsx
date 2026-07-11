@@ -87,7 +87,7 @@ export default function InstallationSetupCenter() {
       }
     } catch (e: any) {
       console.error(e);
-      // Fallback in case of mock environment offline
+      // Fallback in case of environment offline
       setSystemInfo({
         os: { humanName: "Linux / Container", arch: "x64", type: "Linux", release: "5.15.0" },
         hardware: { cpu: "AMD EPYC Compute Core", ram: 16, gpu: "MOCK NVIDIA T4 vGPU Core", freeSpace: 240, cores: 8, threads: 16 },

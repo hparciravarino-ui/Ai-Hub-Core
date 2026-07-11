@@ -210,7 +210,7 @@ export default function ProfessionalChat({
   const [ragMode, setRagMode] = useState<boolean>(true);
   const [indexingFile, setIndexingFile] = useState<string | null>(null);
 
-  // Cloud backup & sync mock states
+  // Cloud backup & sync states
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(false);
   const [encryptionActive, setEncryptionActive] = useState<boolean>(true);
   const [isCopiedId, setIsCopiedId] = useState<string | null>(null);
@@ -1600,7 +1600,7 @@ export default function ProfessionalChat({
                               : "bg-barbg text-zinc-200 border border-zinc-850"
                           }`}>
                             
-                            {/* Text Content with code highlight mock */}
+                            {/* Text Content with code highlight */}
                             <div className="whitespace-pre-line font-sans prose prose-invert">
                               {msg.content}
                             </div>

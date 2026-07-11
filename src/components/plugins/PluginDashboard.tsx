@@ -10,9 +10,7 @@ export default function PluginDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Install custom plugin simulation state
-  const [newPluginName, setNewPluginName] = useState('');
-  const [isInstalling, setIsInstalling] = useState(false);
-
+    
   const fetchPlugins = async () => {
     setIsRefreshing(true);
     try {
@@ -67,40 +65,7 @@ export default function PluginDashboard() {
     }
   };
 
-  const handleInstallPluginMock = async () => {
-    if (!newPluginName.trim()) return;
-    setIsInstalling(true);
-    const mockManifest = {
-      id: `com.community.${newPluginName.toLowerCase().replace(/\s+/g, '')}`,
-      name: newPluginName,
-      version: '1.0.0',
-      author: 'Comunità Indipendente',
-      license: 'MIT' as const,
-      description: `Estensione utile: ${newPluginName} per flussi cognitivi avanzati degli agenti autonomi.`,
-      permissions: ['filesystem.read', 'network.http'],
-      dependencies: {},
-      signature: 'sig_aihub_enterprise_community_trusted',
-      checksum: 'sha256_mock_installed_at_runtime',
-      compatibility: { minCoreVersion: '2.0.0', os: ['windows' as const, 'macos' as const, 'linux' as const] }
-    };
-
-    try {
-      const res = await fetch('/api/enterprise/plugins/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manifest: mockManifest })
-      });
-      if (res.ok) {
-        setNewPluginName('');
-        fetchPlugins();
-      }
-    } catch (e) {
-      console.error("Failed to install mock plugin:", e);
-    } finally {
-      setIsInstalling(false);
-    }
-  };
-
+  
   return (
     <div className="h-full flex flex-col p-6 space-y-6 overflow-y-auto custom-scrollbar text-zinc-100" id="plugin-sdk-dashboard">
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-zinc-800 pb-4 gap-4">

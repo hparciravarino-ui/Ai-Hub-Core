@@ -1,0 +1,10 @@
+import fs from 'fs';
+let code = fs.readFileSync('src/components/plugins/PluginDashboard.tsx', 'utf8');
+code = code.replace(/\{activeTab === 'marketplace' && \([\s\S]*?\}\)/g, '');
+code = code.replace(/\{activeTab === 'developer' && \([\s\S]*?\}\)/g, '');
+code = code.replace(/const handleInstallPluginMock[\s\S]*?fetchPlugins\(\);\n\s+\}\s+\} catch \(\w+\) \{[\s\S]*?\}\s+};\n/g, '');
+code = code.replace(/const \[newPluginName, setNewPluginName\] = useState\(''\);\n/g, '');
+code = code.replace(/const \[isInstalling, setIsInstalling\] = useState\(false\);\n/g, '');
+code = code.replace(/<button\s+onClick=\{\(\) => setActiveTab\('marketplace'\)\}[\s\S]*?Marketplace<\/button>/g, '');
+code = code.replace(/<button\s+onClick=\{\(\) => setActiveTab\('developer'\)\}[\s\S]*?Developer Sandbox<\/button>/g, '');
+fs.writeFileSync('src/components/plugins/PluginDashboard.tsx', code);

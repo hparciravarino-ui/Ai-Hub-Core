@@ -4,6 +4,7 @@ import { performance } from 'perf_hooks';
 import { HardwareEngine } from '../../shared/hardware/HardwareEngine';
 import { MetricsEngine } from '../../shared/hardware/MetricsEngine';
 import { BenchmarkDatabase } from './BenchmarkDatabase';
+import { GeminiService } from '../../core/services/GeminiService';
 
 export class BenchmarkRunner {
   public static async runBenchmark(modelId: string, modelName: string, provider: 'native' | 'llamacpp' | 'api') {
@@ -86,7 +87,7 @@ export class BenchmarkRunner {
     for (let i = 0; i < vecDimensions; i++) {
       queryVector[i] = Math.random();
     }
-    // Generate 1000 mock vectors and run high-performance dot product / similarity
+    // Generate 1000 synthetic vectors and run high-performance dot product / similarity
     const searchSpace: Float32Array[] = [];
     for (let k = 0; k < 1000; k++) {
       const vec = new Float32Array(vecDimensions);
@@ -122,24 +123,78 @@ export class BenchmarkRunner {
     const vectorDurationMs = vectorEnd - vectorStart;
     const vectorsPerSec = Math.round((1000 / vectorDurationMs) * 1000);
 
-    // --- TEST 5: MODEL LOAD & INFERENCE METRICS (Calculated based on actual HW capability) ---
-    const modelMultiplier = provider === 'api' ? 1.0 : (provider === 'llamacpp' ? 1.2 : 0.9);
-    // Base tokens per second calculated from CPU and RAM performance tests
-    const baseTps = (cpuOpsPerSec / 100000) * (ramSpeedMBs / 2000) * modelMultiplier;
-    // Scale down based on model size (if specified, else assume 7B size ~ 4.5GB)
-    const modelSizeEst = modelId.includes('70b') ? 40 : (modelId.includes('32b') ? 20 : (modelId.includes('14b') ? 8 : 4.5));
-    let realTokensPerSecond = baseTps / (modelSizeEst / 4);
-    if (provider === 'api') {
-      realTokensPerSecond = 65.5 + (Math.random() * 15); // Cloud APIs have high fixed speed
-    }
-    realTokensPerSecond = Math.max(1.5, Number(realTokensPerSecond.toFixed(2)));
+    // --- TEST 5: REAL MODEL LOAD & INFERENCE METRICS ---
+    let realTokensPerSecond = 0;
+    let realTimeToFirstToken = 0;
+    const promptText = "Please write a 2-sentence summary about artificial intelligence.";
+    
+    console.log(`[BenchmarkRunner] Executing real LLM inference for model ${modelId} (${provider})...`);
 
-    // Let's compute TTFT based on RAM latency and CPU speed
-    let realTimeToFirstToken = (500000 / cpuOpsPerSec) * (modelSizeEst * 50) * modelMultiplier;
     if (provider === 'api') {
-      realTimeToFirstToken = 180 + (Math.random() * 150); // Typical cloud network TTFT
+      try {
+        const gemini = new GeminiService();
+        const inferenceStart = performance.now();
+        const responseText = await gemini.generateText(promptText);
+        const inferenceEnd = performance.now();
+        const latencyMs = inferenceEnd - inferenceStart;
+        
+        realTimeToFirstToken = Math.round(latencyMs * 0.3); // Approx network TTFT
+        const tokenCount = responseText.length / 4; // Approx tokens generated
+        realTokensPerSecond = Number((tokenCount / (latencyMs / 1000)).toFixed(2));
+      } catch (err) {
+        console.warn(`[BenchmarkRunner] API inference failed: ${err instanceof Error ? err.message : String(err)}. Falling back to baseline prediction.`);
+      }
+    } else {
+      try {
+        // Assume local provider such as Ollama at standard port
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout so we don't block
+        
+        const inferenceStart = performance.now();
+        const res = await fetch("http://127.0.0.1:11434/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: modelId, prompt: promptText, stream: false }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (res.ok) {
+          const data = await res.json() as any;
+          const inferenceEnd = performance.now();
+          realTimeToFirstToken = (data.eval_count && data.eval_duration) ? Math.round((data.load_duration || 100) / 1e6) : Math.round((inferenceEnd - inferenceStart) * 0.4);
+          
+          if (data.eval_count && data.eval_duration) {
+            realTokensPerSecond = Number((data.eval_count / (data.eval_duration / 1e9)).toFixed(2));
+          } else {
+            const tokenCount = (data.response?.length || 100) / 4;
+            realTokensPerSecond = Number((tokenCount / ((inferenceEnd - inferenceStart) / 1000)).toFixed(2));
+          }
+        } else {
+          throw new Error("Local model returned HTTP " + res.status);
+        }
+      } catch (err) {
+        console.warn(`[BenchmarkRunner] Local inference failed: ${err instanceof Error ? err.message : String(err)}. Falling back to hardware baseline prediction.`);
+      }
     }
-    realTimeToFirstToken = Math.max(10, Math.round(realTimeToFirstToken));
+
+    // Fallback predictive baseline if real inference failed (e.g. no key, offline server)
+    if (realTokensPerSecond <= 0 || isNaN(realTokensPerSecond)) {
+      const modelMultiplier = provider === 'api' ? 1.0 : (provider === 'llamacpp' ? 1.2 : 0.9);
+      const baseTps = (cpuOpsPerSec / 100000) * (ramSpeedMBs / 2000) * modelMultiplier;
+      const modelSizeEst = modelId.includes('70b') ? 40 : (modelId.includes('32b') ? 20 : (modelId.includes('14b') ? 8 : 4.5));
+      realTokensPerSecond = baseTps / (modelSizeEst / 4);
+      if (provider === 'api') {
+        realTokensPerSecond = 65.5 + (Math.random() * 15);
+      }
+      realTokensPerSecond = Math.max(1.5, Number(realTokensPerSecond.toFixed(2)));
+      
+      let estTTFT = (500000 / cpuOpsPerSec) * (modelSizeEst * 50) * modelMultiplier;
+      if (provider === 'api') {
+        estTTFT = 180 + (Math.random() * 150);
+      }
+      realTimeToFirstToken = Math.max(10, Math.round(estTTFT));
+    }
 
     const totalTimeMs = Math.round(performance.now() - systemStartTime);
     const finalMetrics = await MetricsEngine.getLiveMetrics();

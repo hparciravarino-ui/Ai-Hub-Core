@@ -1,0 +1,29 @@
+--- src/components/ProjectAnalyzer.tsx
++++ /dev/null
+@@ -1,900 +0,0 @@
+- // Removed due to 100% simulated mock static data
+--- src/core/qa/QualityAssuranceEngine.ts
++++ /dev/null
+@@ -1,150 +0,0 @@
+- // Removed because it is a setTimeout-based simulator
+--- src/server/routes/qa.ts
++++ /dev/null
+@@ -1,30 +0,0 @@
+- // Removed as backend endpoint for the QA simulation
+--- src/core/plugins/PluginManager.ts
++++ /dev/null
+@@ -1,70 +0,0 @@
+- // Removed due to dead code
+--- src/core/desktop/DesktopRuntime.ts
++++ /dev/null
+@@ -1,30 +0,0 @@
+- // Removed due to dead code
+--- src/components/plugins/PluginDashboard.tsx
++++ src/components/plugins/PluginDashboard.tsx
+@@ -70,25 +70,0 @@
+-  const handleInstallPluginMock = async () => { ... } // Removed
+-  // Removed developer sandbox and marketplace UI logic
+--- src/components/layout/AppContent.tsx
++++ src/components/layout/AppContent.tsx
+@@ -142,1 +142,0 @@
+-      {activeTab === "analyzer" && <ProjectAnalyzer />}

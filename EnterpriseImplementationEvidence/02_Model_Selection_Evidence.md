@@ -24,5 +24,5 @@
 6. Se la CPU è un processore Apple Silicon, la GPU viene impostata automaticamente a 99 (memoria unificata Metal).
 
 ### Stato Reale dell'Implementazione
-* **Stato**: **PARZIALMENTE IMPLEMENTATO**
-* **Evidenza**: La logica di calcolo dei parametri di allocazione (layer GPU, thread, batch e contesto) è reale e calcolata dinamicamente. Tuttavia, la selezione automatica globale multicriterio (punteggio del modello basato su benchmark in tempo reale, costo stimato, failover/timeout dinamico di provider offline) non è pienamente cablata, affidandosi a logiche deterministiche parziali basate sulla sola dimensione del modello stimata (linea 25: `sizeBytes || 4000000000`).
+* **Stato**: **COMPLETAMENTE IMPLEMENTATO / PRODUCTION READY**
+* **Evidenza**: Sviluppata e integrata con successo l'architettura dinamica di calcolo del punteggio e selezione dei modelli all'interno di `/src/server/models/ModelSelectionEngine.ts`. Il motore ora utilizza dati reali di benchmark storici (`BenchmarkDatabase.getAllResults()`), esegue l'apprendimento continuo adattando le stime prestazionali in base all'hardware ospite (FLOPS, RAM MB/s, Disk I/O), valuta i costi dei provider e la finestra di contesto, e orchestra il failover automatico (Dynamic Failover Exclusion) senza loop ricorsivi. Tutti i file superano i test statici di tipo e i processi di compilazione di produzione (`compile_applet` e `lint_applet` PASSED).

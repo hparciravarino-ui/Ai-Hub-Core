@@ -1,0 +1,60 @@
+vite.config.ts:6 - default
+src/apiClient.ts:136 - diagnoseAPI
+src/apiClient.ts:197 - searchModelsAPI
+src/App.tsx:9 - default
+src/components/CognitiveMap.tsx:22 - GraphNode (used in module)
+src/components/CognitiveMap.tsx:29 - GraphLink (used in module)
+src/components/FileManager.tsx:5 - FileManagerProps (used in module)
+src/hooks/useAutoConfigEngine.ts:19 - useAutoConfigEngine
+src/hooks/useAutoConfigEngine.ts:4 - ModelOptimizationProfile (used in module)
+src/tests/setup.ts:2 - setup
+src/components/ui/ButtonGroup.tsx:3 - ButtonGroup
+src/components/ui/Card.tsx:11 - CardHeader
+src/components/ui/Card.tsx:19 - CardTitle
+src/core/agents/AgentManager.ts:5 - QueuedAgentTask (used in module)
+src/core/agents/AgentManager.ts:16 - DelegationLog (used in module)
+src/core/agents/AgentManager.ts:273 - IAgent (used in module)
+src/core/benchmark/HardwareMonitor.ts:3 - HardwareMonitor
+src/core/benchmark/PerformanceMonitor.ts:3 - PerformanceMonitor
+src/core/benchmark/StressTestEngine.ts:3 - StressTestEngine
+src/core/desktop/DesktopRuntime.ts:4 - DesktopRuntime
+src/core/desktop/EnterpriseDesktopBridge.ts:3 - BackgroundServiceStatus (used in module)
+src/core/desktop/EnterpriseDesktopBridge.ts:12 - OSNotification (used in module)
+src/core/desktop/EnterpriseDesktopBridge.ts:20 - AutoUpdateStatus (used in module)
+src/core/events/EventBus.ts:1 - EventCallback (used in module)
+src/core/knowledge/DocumentParser.ts:5 - ParsedDocument (used in module)
+src/core/knowledge/RAGService.ts:7 - IngestedFileRecord (used in module)
+src/core/memory/MemoryService.ts:1 - MemoryService
+src/core/memory/PlatformMemory.ts:5 - MemoryRecord (used in module)
+src/core/monitoring/TelemetryManager.ts:5 - TraceSpan (used in module)
+src/core/monitoring/TelemetryManager.ts:15 - EnterpriseTelemetryData (used in module)
+src/core/monitoring/TelemetryManager.ts:32 - TelemetryAlert (used in module)
+src/core/monitoring/TelemetryManager.ts:185 - TelemetryData
+src/core/packaging/PackagingEngine.ts:4 - PackagingTarget (used in module)
+src/core/packaging/PackagingEngine.ts:14 - ReleaseLog (used in module)
+src/core/packaging/PackagingEngine.ts:21 - BackupArchive (used in module)
+src/core/plugins/IPlugin.ts:1 - PluginManifest (used in module)
+src/core/plugins/PluginManager.ts:7 - PluginManager
+src/core/plugins/PluginManager.ts:66 - PluginSDKEngine (used in module)
+src/core/plugins/PluginSDK.ts:6 - ExtendedPluginManifest (used in module)
+src/core/plugins/PluginSDK.ts:23 - PluginConfig (used in module)
+src/core/plugins/PluginSDK.ts:28 - PluginHook (used in module)
+src/core/qa/QualityAssuranceEngine.ts:3 - TestCase (used in module)
+src/core/qa/QualityAssuranceEngine.ts:12 - SecurityVulnerability (used in module)
+src/core/qa/QualityAssuranceEngine.ts:20 - QAReport (used in module)
+src/core/security/AuditLogger.ts:3 - AuditEvent (used in module)
+src/core/security/EnterpriseSecurity.ts:3 - UserSession (used in module)
+src/core/security/EnterpriseSecurity.ts:11 - SecurityPolicy (used in module)
+src/core/security/EnterpriseSecurity.ts:21 - EnterpriseCertificate (used in module)
+src/core/security/SecurityManager.ts:4 - UserRole (used in module)
+src/core/vector/LocalVectorDatabase.ts:14 - LocalVectorDatabase
+src/core/workflows/IWorkflow.ts:1 - NodeType (used in module)
+src/core/workflows/WorkflowEngine.ts:9 - WorkflowExecutionCheckpoint (used in module)
+src/core/workflows/WorkflowEngine.ts:15 - WorkflowExecutionRecord (used in module)
+src/server/models/ModelSelectionEngine.ts:9 - SelectionRequest (used in module)
+src/server/models/ModelSelectionEngine.ts:17 - ModelRankingResult (used in module)
+src/server/routes/index.ts:21 - apiRouter (used in module)
+src/shared/hardware/HardwareDetector.ts:13 - HostProfile (used in module)
+src/shared/hardware/HardwareDetector.ts:28 - ClientProfile (used in module)
+src/shared/hardware/HardwareDetector.ts:48 - BackendProfile (used in module)
+src/shared/hardware/HardwareDetector.ts:62 - AITargetProfile (used in module)

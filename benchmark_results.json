@@ -1,0 +1,60 @@
+[
+  {
+    "modelId": "gemini-1.5-flash",
+    "modelName": "gemini-1.5-flash",
+    "provider": "api",
+    "status": "completed",
+    "error": null,
+    "metrics": {
+      "timeToFirstTokenMs": 273,
+      "tokensPerSecond": 74.63,
+      "totalTimeMs": 380,
+      "cpuPeak": null,
+      "ramPeak": 40,
+      "tempPeak": 52,
+      "cpuOpsPerSec": 29265572,
+      "ramSpeedMBs": 831.76,
+      "diskSpeedMBs": 821.86,
+      "vectorsPerSec": 18282,
+      "vectorSearchTimeMs": 54.7,
+      "cpuDurationMs": 68.34,
+      "ramDurationMs": 229.32
+    },
+    "hardware": {
+      "cpu": "",
+      "ram": 8589934592,
+      "os": "Ubuntu"
+    },
+    "id": "1783752751484",
+    "timestamp": "2026-07-11T06:52:31.484Z"
+  },
+  {
+    "modelId": "llama3-8b",
+    "modelName": "llama3-8b",
+    "provider": "native",
+    "status": "completed",
+    "error": null,
+    "metrics": {
+      "timeToFirstTokenMs": 10,
+      "tokensPerSecond": 83.17,
+      "totalTimeMs": 387,
+      "cpuPeak": null,
+      "ramPeak": 40,
+      "tempPeak": 52,
+      "cpuOpsPerSec": 25576223,
+      "ramSpeedMBs": 813.01,
+      "diskSpeedMBs": 874.4,
+      "vectorsPerSec": 16806,
+      "vectorSearchTimeMs": 59.504,
+      "cpuDurationMs": 78.2,
+      "ramDurationMs": 234.6
+    },
+    "hardware": {
+      "cpu": "",
+      "ram": 8589934592,
+      "os": "Ubuntu"
+    },
+    "id": "1783752777224",
+    "timestamp": "2026-07-11T06:52:57.224Z"
+  }
+]

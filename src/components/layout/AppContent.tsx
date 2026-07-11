@@ -14,7 +14,6 @@ import ProfessionalChat from "../ProfessionalChat";
 import Scheduler from "../Scheduler";
 import PluginCenter from "../PluginCenter";
 import SecurityCenter from "../SecurityCenter";
-import ProjectAnalyzer from "../ProjectAnalyzer";
 import AIEvolutionEngine from "../AIEvolutionEngine";
 import UserGuide from "../UserGuide";
 import FileManager from "../FileManager";
@@ -139,7 +138,6 @@ export function AppContent(props: any) {
         />
       )}
 
-      {activeTab === "analyzer" && <ProjectAnalyzer />}
       {activeTab === "evolution" && <AIEvolutionEngine />}
       {activeTab === "scheduler" && <Scheduler />}
     </main>
